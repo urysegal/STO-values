@@ -53,9 +53,57 @@ The input is given in a JSON document as follows:
 }
 ```
 
-Sample and default values are:
+Most fields have default values:
+
+```
+{
+  "max_number_of_terms" : 128,
+  "max_iterations" : 1024,
+  "accuray" : 3.2e-8,
+  "test_points" : 1024,
+  "max_test_error" : 1e-10
+}
+```
+
+
 
 In addition, the JSON fields can be specified on the command line.
+
+#### s2g output
+
+The output is printed to standard output as JSON with three sections:
+```
+{
+    "input": {},
+    "program_info": {},
+    "N" : integer
+    "terms": [
+       { C : numer, b : number },
+       ...
+       { C : number, b: Number },
+    ],
+    "accuracy" : number
+    "test_points": [
+       {
+        x: number,
+        sto: number,
+        estimate: number,
+        error: number
+        },
+        ...
+    ] 
+}    
+
+The input section is just the input variables. The program_info contains
+various information about the program - which compiler was used, which CPU
+was used, versions of libraries used, running time, etc. The accuracy field 
+contains the root-squared-errors of all test point. The test_points contain
+the tests done - the x value, the sto value at that x, and the estimated 
+sto value. The difference is in the error field.
+
+
+```
+
 
 ###  investigate - explore the accuracy of the s2g output
 
