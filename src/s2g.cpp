@@ -68,11 +68,21 @@ static std::string time_to_string(const std::chrono::system_clock::time_point& t
     return std::ctime(&t);
 }
 
+void
+add_system_info(nlohmann::json &program_info)
+{
+    program_info["cpu"] = ;
+    program_info["OS"] = ;
+    program_info["compiler"] = ;
+}
+
 
 void
 estimate(nlohmann::json &input_set, nlohmann::json &output_set)
 {
     nlohmann::json program_info;
+
+    add_system_info(program_info);
 
     Estimator estimator(input_set);
 
