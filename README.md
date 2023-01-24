@@ -13,9 +13,9 @@ The programs can be compiled and run or accessed as a cloud service at <> with t
 
 ###  s2g - accurate estimate of an STO as a sum of GTOs
 
-The goal is to find, given a positive number ```a```, a solution to 
+The goal is to find a solution to 
 
-```exp(-a*x) = sum ( i=1...N )  { Ci * exp(-Bi*x^2) }```
+```exp(-x) = sum ( i=1...N )  { Ci * exp(-Bi*x^2) }```
 
 That is, finding  the following:
 
@@ -34,7 +34,7 @@ in considered inaccurate and the program will continue to iterate.
 
 #### s2g input
 
-The program works by picking a trail N, and then using an iterative method to find Ci and Bi until
+The program works by picking a trial N, and then using an iterative method to find Ci and Bi until
 they do not improve any more. If the desired accuracy has not reached, the program
 increases N and tries to find a new set of Ci and Bi.
 
@@ -44,12 +44,11 @@ per a trial N.
 The input is given in a JSON document as follows:
 ```
 {
-  "sto_exponent": A number representing 'a' above
   "max_number_of_terms" : An integer limiting the upper value of N to try
   "max_iterations" : An integer limiting the maximum number of iterations per test value of N
-  "accuray" : accuracy desired, in root sum of squares.
+  "accuracy" : accuracy desired, in root sum of squares.
   "test_points" : Integer number of test points
-  "max_test_error" : maximum error allowed in any test point
+  "max_test_error" : maximum error allowed at any test point
 }
 ```
 
@@ -59,7 +58,7 @@ Most fields have default values:
 {
   "max_number_of_terms" : 128,
   "max_iterations" : 1024,
-  "accuray" : 3.2e-8,
+  "accuracy" : 3.2e-8,
   "test_points" : 1024,
   "max_test_error" : 1e-10
 }
@@ -106,6 +105,51 @@ sto value. The difference is in the error field.
 
 
 ###  investigate - explore the accuracy of the s2g output
+
+#### input
+
+Using the output of s2g, this program produces values of 
+
+```exp(-alpha*x)```
+
+and
+
+```sum ( i=1...N )  { Ci * exp(-Bi*x^2) }```
+
+And the error between them. You can ask for multiple points
+of comparison in various distributions. 
+
+
+The input is given in a JSON document as follows:
+```
+{
+  "sto_exponent": A number representing 'alpha' above,
+  "estimator": A URL to the output of s2g ,
+}
+```
+#### output
+
+The output is printed to standard output as JSON with three sections:
+```
+{
+    "input": {},
+    "program_info": {},
+    "N" : integer
+    "terms": [
+       { C : numer, b : number },
+       ...
+       { C : number, b: Number },
+    ],
+    "test_points": [
+       {
+        x: number,
+        sto: number,
+        estimate: number,
+        error: number
+        },
+        ...
+    ] 
+}    
 
 
 ###  integrate - Calculate 3- and 4- center STO integrals
