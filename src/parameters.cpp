@@ -8,7 +8,7 @@ using namespace nlohmann;
 namespace stovalues
 {
 
-Parameters::Parameters(const nlohmann::json &j)
+Arguments::Arguments(const nlohmann::json &j)
 {
     try {
         this->accuracy = j["accuracy"];

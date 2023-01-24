@@ -7,8 +7,8 @@
 
 #include "s2g.h"
 #include "logger.h"
-
-
+#include <sys/utsname.h>
+#include <gsl/gsl_version.h>
 
 namespace po = boost::program_options;
 using namespace std;
@@ -71,9 +71,14 @@ static std::string time_to_string(const std::chrono::system_clock::time_point& t
 void
 add_system_info(nlohmann::json &program_info)
 {
-    program_info["cpu"] = ;
-    program_info["OS"] = ;
-    program_info["compiler"] = ;
+    struct utsname name;
+    uname(&name);
+    program_info["num_cpus"] = sysconf( _SC_NPROCESSORS_ONLN );
+    program_info["machine"] = string(name.machine);
+    program_info["OS"] = string (name.sysname) + " " + string (name.release) + " " +string (name.version);
+    program_info["compiler_version"] = __VERSION__;
+    program_info["boost_version"] = std::to_string(BOOST_VERSION) ;
+    program_info["gsl_version"] = GSL_VERSION;
 }
 
 

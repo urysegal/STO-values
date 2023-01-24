@@ -16,8 +16,7 @@ set(LINK_FLAGS -fsanitize=address)
 
 
 find_package(Boost 1.71 REQUIRED program_options)
-
-
+find_package(GSL REQUIRED)
 find_package(PkgConfig)
 find_package (Eigen3 3.3 REQUIRED NO_MODULE)
 
@@ -33,6 +32,8 @@ add_dependencies(s2g nlohmann_json)
 target_link_libraries(s2g PUBLIC spdlog::spdlog)
 target_link_libraries (s2g PUBLIC Eigen3::Eigen)
 target_link_libraries (s2g PUBLIC ${Boost_LIBRARIES})
+target_link_libraries(s2g PUBLIC GSL::gsl )
+target_link_libraries(s2g PUBLIC GSL::gslcblas)
 target_include_directories(s2g PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_options(s2g PUBLIC ${COMPILE_FLAGS})
 target_link_options(s2g PUBLIC ${LINK_FLAGS})

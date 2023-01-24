@@ -8,9 +8,9 @@ namespace stovalues {
 void stovalues_global_cleanup();
 void stovalues_global_init();
 
-class Parameters {
+class Arguments {
 public:
-    Parameters(const nlohmann::json &json);
+    Arguments(const nlohmann::json &json);
 
 private:
     unsigned int max_number_of_terms = 128;
@@ -23,12 +23,12 @@ private:
 class Estimator {
 public:
 
-    Estimator(const Parameters &_params) : params(_params) {}
+    Estimator(const Arguments &_args) : args(_args) {}
     void work(nlohmann::json &output_json);
 
 private:
 
-    Parameters params;
+    Arguments args;
 
 };
 

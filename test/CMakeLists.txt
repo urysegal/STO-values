@@ -11,7 +11,7 @@ include (Catch)
 
 include(CTest)
 
-SET(CMAKE_CXX_FLAGS  "${CMAKE_C_FLAGS} ${GCC_WERR_COMPILE_FLAGS} -fsanitize=address")
+SET(CMAKE_CXX_FLAGS  "${CMAKE_C_FLAGS} ${GCC_WERR_COMPILE_FLAGS} -fsanitize=address -Werr")
 SET(CMAKE_CXX_FLAGS "${CMAKE_C_FLAGS} -pthread")
 
 add_executable(test-all  test-s2g.cpp ../src/environ.cpp ../src/logger.cpp ../src/parameters.cpp ../src/estimator.cpp)
