@@ -18,12 +18,12 @@ namespace stovalues {
 static nlohmann::json parse_args(int argc, const char **argv)
 {
     nlohmann::json input_set;
-    unsigned int max_number_of_terms, max_iterations, test_points;
+    unsigned int number_of_terms, max_iterations, test_points;
     double accuracy, max_test_error;
 
     po::options_description desc("s2g parameters:");
     desc.add_options()
-            ("max_number_of_terms", po::value<unsigned int>(&max_number_of_terms)->default_value(128), "Maximum trial N")
+            ("number_of_terms,N", po::value<unsigned int>(&number_of_terms)->required(), "number of terms in the approximate sum")
             ("max_iterations", po::value<unsigned int>(&max_iterations)->default_value(1024), "Maximum number of iterations per trial N")
             ("accuracy", po::value<double>(&accuracy)->default_value(3.2e-8), "Accuracy desired")
             ("test_points", po::value<unsigned int>(&test_points)->default_value(1024), "Number of test points")
@@ -32,7 +32,7 @@ static nlohmann::json parse_args(int argc, const char **argv)
         po::variables_map vm;
         po::store(po::parse_command_line(argc, argv, desc), vm);
         po::notify(vm);
-        input_set["max_number_of_terms"] = max_number_of_terms;
+        input_set["number_of_terms"] = number_of_terms;
         input_set["max_iterations"] = max_iterations;
         input_set["accuracy"] = accuracy;
         input_set["test_points"] = test_points;

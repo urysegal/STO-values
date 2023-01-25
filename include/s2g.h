@@ -17,8 +17,11 @@ class Arguments {
 public:
     Arguments(const nlohmann::json &json);
 
+    auto get_number_of_terms() const { return number_of_terms; }
+    auto get_max_iterations() const { return max_iterations; }
+
 private:
-    unsigned int max_number_of_terms = 128;
+    unsigned int number_of_terms = 128;
     unsigned int max_iterations = 1024;
     unsigned int test_points = 1024;
     double accuracy = 3.2e-8;

@@ -14,6 +14,9 @@ typedef  __float128 real_t;
 real_t pi = std::numbers::pi_v<long double>;
 real_t half_pi = std::numbers::pi_v<long double> / 2.0 ;
 real_t sqrt_pi = sqrtq(pi);
+real_t half_sqrt_pi = sqrtq(pi)/2.0;
+real_t quarter_sqrt_pi = sqrtq(pi)/4.0;
+
 
 real_t errfunc(real_t sqrt_beta)
 {
@@ -71,7 +74,26 @@ double Estimator::diff_by_Ci(const gsl_vector *v, size_t i)
 
 double Estimator::diff_by_bi(const gsl_vector *v, size_t i)
 {
+    real_t beta_i = gsl_vector_get(v, i + 1);
+    real_t beta_i_sqrt = sqrtq(beta_i);
+    real_t beta_i_pow_neg_3_2 = 1.0/powq(beta_i_sqrt, 3.0);
+    real_t beta_i_pow_neg_5_2 = 1.0/powq(beta_i_sqrt, 5.0);
+    real_t Ci = gsl_vector_get(v, i);
 
+    real_t sum = 0;
+    for (auto j = 0U; j < v->size; j += 2) {
+
+        real_t Cj = gsl_vector_get(v, j);
+        real_t beta_j = gsl_vector_get(v, j + 1);
+
+        auto err = errfunc(sqrtq(beta_j));
+        auto exp = expq(1/(4*beta_j));
+        sum += Ci*Cj*1.0/sqrtq(powq(beta_i+beta_j,3.0)) ;
+        sum += half_sqrt_pi * Ci * beta_i_pow_neg_3_2* exp * err ;
+        sum += quarter_sqrt_pi * Ci * beta_i_pow_neg_5_2 * exp * err ;
+        sum -= Ci/(2*beta_j*beta_j);
+    }
+    return -half_sqrt_pi*sum;
 }
 
 
@@ -119,12 +141,11 @@ void Estimator::work(nlohmann::json &output_json)
 {
     size_t iter = 0;
     int status;
-    int N=1;
+    auto N = args.get_number_of_terms();
     int n = N*2;
 
     const gsl_multimin_fdfminimizer_type *T;
     gsl_multimin_fdfminimizer *s;
-
 
     gsl_vector *x;
     gsl_multimin_function_fdf my_func;
@@ -137,8 +158,8 @@ void Estimator::work(nlohmann::json &output_json)
 
     /* Starting point, x = (5,7) */
     x = gsl_vector_alloc (n);
-    gsl_vector_set (x, 0, 5.0);
-    gsl_vector_set (x, 1, 7.0);
+    gsl_vector_set (x, 0, 1.0);
+    gsl_vector_set (x, 1, 0.27);
 
     T = gsl_multimin_fdfminimizer_conjugate_fr;
     s = gsl_multimin_fdfminimizer_alloc (T, n);
@@ -164,7 +185,7 @@ void Estimator::work(nlohmann::json &output_json)
                 s->f);
 
     }
-    while (status == GSL_CONTINUE && iter < 100);
+    while (status == GSL_CONTINUE && iter < args.get_max_iterations());
 
     gsl_multimin_fdfminimizer_free (s);
     gsl_vector_free (x);

@@ -4,7 +4,7 @@ Calculate highly accurate sample values of 3- and 4- center electronic integrals
 This package provides three programs. 
 
 1. _s2g_: create an accurate estimate of an STO as a sum of GTOs
-1. _investigate_ : Calculate the accuracy of the result of (1), with emphasis on cusp and tail
+1. _investigate_ : Calculate the accuracy of the result of (1)
 1. _integrate_ : Calculate 3- and 4- center STO integrals using the output of (1)
 
 Program input and output is in JSON format.
@@ -17,38 +17,34 @@ The goal is to find a solution to
 
 ```exp(-x) = sum ( i=1...N )  { Ci * exp(-Bi*x^2) }```
 
-That is, finding  the following:
+That is, finding for a given N the following:
 
-1. number of elements to sum N
 1. coefficients list Ci , i=1..N
 1. exponent list Bi, i=1..N
 
-As an exact solution does not exist for finite N, the program tries to get an approximation that is good
+As an exact solution does not exist for a finite N, the program tries to get an approximation that is good
 up to a given criteria. There is no guarantee the program will succeed in finding a solution.
 
-The accuracy of the approximation is given in root sum of squares of errors. The test 
-points are chosen with emphasis on the cusp and tail of the STO.
+The accuracy of the approximation is given in root sum of squares of errors. 
 
 In addition, you can specify the maximum error allowed in any test point. If this is not achieved, the proposed estimate
 in considered inaccurate and the program will continue to iterate.
 
 #### s2g input
 
-The program works by picking a trial N, and then using an iterative method to find Ci and Bi until
-they do not improve any more. If the desired accuracy has not reached, the program
-increases N and tries to find a new set of Ci and Bi.
-
-You can control the maximum N and also the maximum number of iteration
-per a trial N. 
+The program works by using an iterative method to find Ci and Bi until
+they do not improve any more. When solving for a given N, the program needs the output
+of a previous run with N _prev_=N-1, in order to generate a good initial guess, unless N=1, which has a builtin initial guess.
 
 The input is given in a JSON document as follows:
 ```
 {
-  "max_number_of_terms" : An integer limiting the upper value of N to try
+  "number_of_terms" : The integer N above
   "max_iterations" : An integer limiting the maximum number of iterations per test value of N
-  "accuracy" : accuracy desired, in root sum of squares.
+  "accuracy" : average accuracy desired, in root integral of error squared.
   "test_points" : Integer number of test points
   "max_test_error" : maximum error allowed at any test point
+  "guess": A URL to the output of s2g used with N=number_of_terms-1
 }
 ```
 
@@ -56,14 +52,12 @@ Most fields have default values:
 
 ```
 {
-  "max_number_of_terms" : 128,
   "max_iterations" : 1024,
   "accuracy" : 3.2e-8,
   "test_points" : 1024,
   "max_test_error" : 1e-10
 }
 ```
-
 
 
 In addition, the JSON fields can be specified on the command line.
@@ -75,7 +69,6 @@ The output is printed to standard output as JSON with three sections:
 {
     "input": {},
     "program_info": {},
-    "N" : integer
     "terms": [
        { C : numer, b : number },
        ...
@@ -92,6 +85,7 @@ The output is printed to standard output as JSON with three sections:
         ...
     ] 
 }    
+```
 
 The input section is just the input variables. The program_info contains
 various information about the program - which compiler was used, which CPU
@@ -101,7 +95,7 @@ the tests done - the x value, the sto value at that x, and the estimated
 sto value. The difference is in the error field.
 
 
-```
+
 
 
 ###  investigate - explore the accuracy of the s2g output
