@@ -31,18 +31,23 @@ private:
 class Estimator {
 public:
 
-    Estimator(const Arguments &_args) : args(_args) {}
-    void work(nlohmann::json &output_json);
+    Estimator(const Arguments &_args) : args(_args) , N(args.get_number_of_terms()){}
+    void minimize_C_beta_together(nlohmann::json &output_json);
+    void minimize_beta_with_calculated_C(nlohmann::json &output_json);
 
     double average_error (const gsl_vector *v);
     void average_error_df (const gsl_vector *v, gsl_vector *df);
+    void average_error_df_beta_only(const gsl_vector *v, gsl_vector *df);
 
 private:
 
     Arguments args;
+    const unsigned int N=0;
 
     double diff_by_Ci(const gsl_vector *v, size_t i);
     double diff_by_bi(const gsl_vector *v, size_t i);
+
+    void update_C(gsl_vector *);
 
 };
 
