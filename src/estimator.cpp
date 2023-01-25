@@ -1,43 +1,75 @@
 #include "s2g.h"
 #include <gsl/gsl_multimin.h>
 #include <gsl/gsl_vector.h>
+#include <gsl/gsl_sf_erf.h>
 #include "logger.h"
 #include <numbers>
+#include <quadmath.h>
 
 
 namespace stovalues {
 
+typedef  __float128 real_t;
+
+real_t pi = std::numbers::pi_v<long double>;
+real_t half_pi = std::numbers::pi_v<long double> / 2.0 ;
+
+real_t errfunc(real_t u)
+{
+    return gsl_sf_erf(u);
+}
+
 double
 my_f (const gsl_vector *v, void *params)
 {
-    auto args = static_cast<const Arguments *>(params);
-    double sum = 0;
+    //auto args = static_cast<Estimator *>(params);
+    real_t sum1 = 0;
+    real_t sum2 = 0;
 
-    for ( int i = 0 ; i < v->size ; i+=2 ) {
-        sum += gsl_vector_get(v,i) * exp(gsl_vector_get(v, i+1));
+    for ( auto i = 0U ; i < v->size ; i+=2 ) {
+
+        real_t Ci = gsl_vector_get(v, i);
+        real_t beta_i = gsl_vector_get(v, i+1);
+
+        real_t sqrt_beta_i = sqrtq(beta_i);
+        real_t errf = 1.0 - errfunc(1/(2.0*sqrt_beta_i));
+        sum2 += (Ci/sqrt_beta_i)*expq(1.0/(4.0*beta_i))*errf;
+
+        for ( auto j = 0U ; j < v->size ; j+=2 ) {
+
+            real_t Cj = gsl_vector_get(v, j);
+            auto beta_j = gsl_vector_get(v, j + 1);
+
+            sum1 += Ci * Cj / (sqrtq(beta_i + beta_j));
+        }
     }
+
+    double sum = 0.5 + half_pi*sum1 + pi*sum2;
 
     logger()->trace("f called with N={}, sum is {}",v->size/2,sum);
 
     return sum;
 }
 
-/* The gradient of f, df = (df/dx, df/dy). */
+double diff_by_Ci(const gsl_vector *v, size_t i);
+
+double diff_by_bi(const gsl_vector *v, size_t i);
+
 void
 my_df (const gsl_vector *v, void *params, gsl_vector *df)
 {
-    auto args = static_cast<const Arguments *>(params);
-    auto pi = std::numbers::pi_v<long double>;
+    //auto args = static_cast<const Arguments *>(params);
     auto N = v->size/2;
+    logger()->trace("df called with N={}", N);
 
-    double x, y;
-    double *p = (double *)params;
+    for ( auto i = 0U ; i < v->size ; i+=2 ) {
+        auto dF_dCi = diff_by_Ci(v, i);
+        gsl_vector_set(df, i, dF_dCi);
+        auto dF_dbi = diff_by_bi(v, i);
+        gsl_vector_set(df, i+1, dF_dbi);
+        logger()->trace("dF/dC_{} = {} , dF/db_{} = {}", i, dF_dCi, i, dF_dbi);
+    }
 
-    x = gsl_vector_get(v, 0);
-    y = gsl_vector_get(v, 1);
-
-    gsl_vector_set(df, 0, 2.0 * p[2] * (x - p[0]));
-    gsl_vector_set(df, 1, 2.0 * p[3] * (y - p[1]));
 }
 
 /* Compute both f and df together. */
@@ -68,7 +100,7 @@ void Estimator::work(nlohmann::json &output_json)
     my_func.f = my_f;
     my_func.df = my_df;
     my_func.fdf = my_fdf;
-    my_func.params = & ( this->args );
+    my_func.params = this;
 
     /* Starting point, x = (5,7) */
     x = gsl_vector_alloc (n);

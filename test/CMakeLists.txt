@@ -18,7 +18,7 @@ add_executable(test-all  test-s2g.cpp ../src/environ.cpp ../src/logger.cpp ../sr
 find_package(spdlog REQUIRED)
 
 target_include_directories(test-all PUBLIC ${CMAKE_SOURCE_DIR})
-target_link_libraries( test-all PUBLIC Catch2::Catch2WithMain spdlog::spdlog )
+target_link_libraries( test-all PUBLIC Catch2::Catch2WithMain spdlog::spdlog GSL::gsl GSL::gslcblas quadmath)
 
 
 catch_discover_tests(test-all)

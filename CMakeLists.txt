@@ -12,7 +12,7 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 option(COVERAGE "Coverage" ON)
 
 set(COMPILE_FLAGS -Wall -Werror -fsanitize=address -fsanitize=leak -fno-omit-frame-pointer -pthread)
-set(LINK_FLAGS -fsanitize=address)
+set(LINK_FLAGS -fsanitize=address -lm -lquadmath)
 
 
 find_package(Boost 1.71 REQUIRED program_options)
