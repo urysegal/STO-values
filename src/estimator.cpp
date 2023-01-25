@@ -13,16 +13,16 @@ typedef  __float128 real_t;
 
 real_t pi = std::numbers::pi_v<long double>;
 real_t half_pi = std::numbers::pi_v<long double> / 2.0 ;
+real_t sqrt_pi = sqrtq(pi);
 
-real_t errfunc(real_t u)
+real_t errfunc(real_t sqrt_beta)
 {
-    return gsl_sf_erf(u);
+    return 1.0 - gsl_sf_erf(1.0/(2.0*sqrt_beta));
 }
 
-double
-my_f (const gsl_vector *v, void *params)
+
+double Estimator::average_error(const gsl_vector *v)
 {
-    //auto args = static_cast<Estimator *>(params);
     real_t sum1 = 0;
     real_t sum2 = 0;
 
@@ -32,8 +32,7 @@ my_f (const gsl_vector *v, void *params)
         real_t beta_i = gsl_vector_get(v, i+1);
 
         real_t sqrt_beta_i = sqrtq(beta_i);
-        real_t errf = 1.0 - errfunc(1/(2.0*sqrt_beta_i));
-        sum2 += (Ci/sqrt_beta_i)*expq(1.0/(4.0*beta_i))*errf;
+        sum2 += (Ci/sqrt_beta_i)*expq(1.0/(4.0*beta_i))*errfunc(sqrt_beta_i);
 
         for ( auto j = 0U ; j < v->size ; j+=2 ) {
 
@@ -51,14 +50,33 @@ my_f (const gsl_vector *v, void *params)
     return sum;
 }
 
-double diff_by_Ci(const gsl_vector *v, size_t i);
-
-double diff_by_bi(const gsl_vector *v, size_t i);
-
-void
-my_df (const gsl_vector *v, void *params, gsl_vector *df)
+double Estimator::diff_by_Ci(const gsl_vector *v, size_t i)
 {
-    //auto args = static_cast<const Arguments *>(params);
+
+    real_t beta_i = gsl_vector_get(v, i + 1);
+    real_t sum = 0;
+    for (auto j = 0U; j < v->size; j += 2) {
+
+        real_t Cj = gsl_vector_get(v, j);
+        real_t beta_j = gsl_vector_get(v, j + 1);
+        sum += Cj/(sqrtq(beta_i+beta_j));
+
+        real_t sqrt_beta_j = sqrtq(beta_j);
+        real_t term = expq(1/(4.0*beta_j)) * errfunc(sqrt_beta_j);
+        sum -= sqrt_pi*term;
+    }
+
+    return sqrt_pi*sum;
+}
+
+double Estimator::diff_by_bi(const gsl_vector *v, size_t i)
+{
+
+}
+
+
+void Estimator::average_error_df (const gsl_vector *v, gsl_vector *df)
+{
     auto N = v->size/2;
     logger()->trace("df called with N={}", N);
 
@@ -77,10 +95,25 @@ void
 my_fdf (const gsl_vector *x, void *params,
         double *f, gsl_vector *df)
 {
-    *f = my_f(x, params);
-    my_df(x, params, df);
+    auto args = static_cast<Estimator *>(params);
+
+    *f = args->average_error(x);
+    args->average_error_df(x, df);
 }
 
+double
+my_f (const gsl_vector *v, void *params)
+{
+    auto args = static_cast<Estimator *>(params);
+    return args->average_error(v);
+}
+
+void
+my_df (const gsl_vector *v, void *params, gsl_vector *df)
+{
+    auto args = static_cast<Estimator *>(params);
+    args->average_error_df(v,df);
+}
 
 void Estimator::work(nlohmann::json &output_json)
 {
