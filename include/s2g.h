@@ -32,22 +32,35 @@ class Estimator {
 public:
 
     Estimator(const Arguments &_args) : args(_args) , N(args.get_number_of_terms()){}
-    void minimize_C_beta_together(nlohmann::json &output_json);
-    void minimize_beta_with_calculated_C(nlohmann::json &output_json);
+    virtual void minimize(nlohmann::json &output_json);
 
     double average_error (const gsl_vector *v);
     void average_error_df (const gsl_vector *v, gsl_vector *df);
-    void average_error_df_beta_only(const gsl_vector *v, gsl_vector *df);
 
-private:
+protected:
 
     Arguments args;
     const unsigned int N=0;
+    gsl_vector *x = nullptr;
 
     double diff_by_Ci(const gsl_vector *v, size_t i);
     double diff_by_bi(const gsl_vector *v, size_t i);
 
+    virtual double GET_C(const gsl_vector *v, unsigned int i) const { return gsl_vector_get(v, (N + i)); }
+
     void update_C(gsl_vector *);
+
+};
+
+class Calculated_C_Estimator : public Estimator
+{
+public:
+    Calculated_C_Estimator(const Arguments &_args) : Estimator(_args) {}
+    void average_error_df_beta_only(const gsl_vector *v, gsl_vector *df);
+    void minimize(nlohmann::json &output_json) override;
+
+protected:
+    double GET_C(const gsl_vector *v, unsigned int i) const override { return gsl_vector_get(x, (N + i)); }
 
 };
 

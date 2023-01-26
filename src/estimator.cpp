@@ -2,13 +2,14 @@
 #include <gsl/gsl_multimin.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_sf_erf.h>
+#include <gsl/gsl_linalg.h>
+
 #include <numbers>
 #include <quadmath.h>
 
 #include "s2g.h"
 #include "logger.h"
 
-#define GET_C(i) gsl_vector_get(v, (N + i))
 #define GET_beta(i) gsl_vector_get(v, (i))
 
 namespace stovalues {
@@ -34,7 +35,7 @@ double Estimator::average_error(const gsl_vector *v)
 
     for ( auto i = 0U ; i < N ; ++i ) {
 
-        real_t Ci = GET_C(i);
+        real_t Ci = GET_C(v, i);
         real_t beta_i = GET_beta(i);
 
         real_t sqrt_beta_i = sqrtq(beta_i);
@@ -42,7 +43,7 @@ double Estimator::average_error(const gsl_vector *v)
 
         for ( auto j = 0U ; j < N ; ++j ) {
 
-            real_t Cj = GET_C(j);
+            real_t Cj = GET_C(v, j);
             auto beta_j = GET_beta(j);
 
             sum1 += Ci * Cj / (sqrtq(beta_i + beta_j));
@@ -63,7 +64,7 @@ double Estimator::diff_by_Ci(const gsl_vector *v, size_t i)
     real_t sum = 0;
     for (auto j = 0U; j < N; ++j) {
 
-        real_t Cj = GET_C(j);
+        real_t Cj = GET_C(v, j);
         real_t beta_j = GET_beta(j);
         sum += Cj/(sqrtq(beta_i+beta_j));
 
@@ -81,12 +82,12 @@ double Estimator::diff_by_bi(const gsl_vector *v, size_t i)
     real_t beta_i_sqrt = sqrtq(beta_i);
     real_t beta_i_pow_neg_3_2 = 1.0/powq(beta_i_sqrt, 3.0);
     real_t beta_i_pow_neg_5_2 = 1.0/powq(beta_i_sqrt, 5.0);
-    real_t Ci = GET_C(i);
+    real_t Ci = GET_C(v, i);
 
     real_t sum = 0;
     for (auto j = 0U; j < N; ++j) {
 
-        real_t Cj = GET_C(j);
+        real_t Cj = GET_C(v, j);
         real_t beta_j = GET_beta(j);
 
         auto err = errfunc(sqrtq(beta_j));
@@ -111,14 +112,6 @@ void Estimator::average_error_df (const gsl_vector *v, gsl_vector *df)
     }
 }
 
-void Estimator::average_error_df_beta_only(const gsl_vector *v, gsl_vector *df)
-{
-    for ( auto i = 0U ; i < N ; ++i ) {
-        auto dF_dbi = diff_by_bi(v, i);
-        gsl_vector_set(df, i, dF_dbi);
-        logger()->trace("dF/db_{} = {}", i, dF_dbi);
-    }
-}
 
 
 /* Compute both f and df together. */
@@ -146,7 +139,7 @@ my_df (const gsl_vector *v, void *params, gsl_vector *df)
     args->average_error_df(v,df);
 }
 
-void Estimator::minimize_C_beta_together(nlohmann::json &output_json)
+void Estimator::minimize(nlohmann::json &output_json)
 {
     size_t iter = 0;
     int status;
@@ -155,7 +148,6 @@ void Estimator::minimize_C_beta_together(nlohmann::json &output_json)
     const gsl_multimin_fdfminimizer_type *T;
     gsl_multimin_fdfminimizer *s;
 
-    gsl_vector *x;
     gsl_multimin_function_fdf my_func;
 
     my_func.n = n;
@@ -199,12 +191,21 @@ void Estimator::minimize_C_beta_together(nlohmann::json &output_json)
 
 }
 
+void Calculated_C_Estimator::average_error_df_beta_only(const gsl_vector *v, gsl_vector *df)
+{
+    for ( auto i = 0U ; i < N ; ++i ) {
+        auto dF_dbi = diff_by_bi(v, i);
+        gsl_vector_set(df, i, dF_dbi);
+        logger()->trace("dF/db_{} = {}", i, dF_dbi);
+    }
+}
+
 /* Compute both f and df together. */
 void
 beta_only_fdf (const gsl_vector *x, void *params,
         double *f, gsl_vector *df)
 {
-    auto args = static_cast<Estimator *>(params);
+    auto args = static_cast<Calculated_C_Estimator *>(params);
 
     *f = args->average_error(x);
     args->average_error_df_beta_only(x, df);
@@ -213,12 +214,12 @@ beta_only_fdf (const gsl_vector *x, void *params,
 void
 beta_only_df (const gsl_vector *v, void *params, gsl_vector *df)
 {
-    auto args = static_cast<Estimator *>(params);
+    auto args = static_cast<Calculated_C_Estimator *>(params);
     args->average_error_df_beta_only(v,df);
 }
 
 
-void Estimator::minimize_beta_with_calculated_C(nlohmann::json &output_json)
+void Calculated_C_Estimator::minimize(nlohmann::json &output_json)
 {
     size_t iter = 0;
     int status;
@@ -226,7 +227,6 @@ void Estimator::minimize_beta_with_calculated_C(nlohmann::json &output_json)
     const gsl_multimin_fdfminimizer_type *T;
     gsl_multimin_fdfminimizer *s;
 
-    gsl_vector *x;
     gsl_multimin_function_fdf my_func;
 
     my_func.n = N;
@@ -242,7 +242,10 @@ void Estimator::minimize_beta_with_calculated_C(nlohmann::json &output_json)
     T = gsl_multimin_fdfminimizer_conjugate_fr;
     s = gsl_multimin_fdfminimizer_alloc (T, N);
 
-    gsl_multimin_fdfminimizer_set (s, &my_func, x, 0.01, 0.1);
+    gsl_vector_view sx = gsl_vector_subvector(x, 0, N);
+    gsl_multimin_fdfminimizer_set (s, &my_func, &sx.vector, 0.01, 0.1);
+
+    printf ("\nDirectly Calculated C:\n");
 
     do
     {
@@ -262,7 +265,7 @@ void Estimator::minimize_beta_with_calculated_C(nlohmann::json &output_json)
 
         printf ("%5lu beta=%.5f C=%.5f f=%10.5f\n", iter,
                 gsl_vector_get (s->x, 0),
-                gsl_vector_get (s->x, 1),
+                gsl_vector_get (x, 1),
                 s->f);
 
     }
@@ -273,6 +276,54 @@ void Estimator::minimize_beta_with_calculated_C(nlohmann::json &output_json)
 
 }
 
+void Estimator::update_C(gsl_vector *betas)
+{
+    gsl_matrix *Ski = gsl_matrix_alloc(N, N);
+    gsl_vector *S0i = gsl_vector_alloc(N);
+    gsl_vector *C = gsl_vector_alloc (N);
+
+    int s;
+    gsl_permutation * p = gsl_permutation_alloc (N);
+
+    for ( auto k = 0U ; k < N ; ++k ) {
+        for ( auto i = 0U ; i < N ; ++i ) {
+            real_t beta_k = gsl_vector_get(betas, k);
+            real_t beta_i = gsl_vector_get(betas, i);
+            auto term = 1.0/sqrtq(beta_i+beta_k);
+            gsl_matrix_set(Ski,k,i,term);
+        }
+    }
+
+    for ( auto i = 0U ; i < N ; ++i ) {
+        real_t beta_i = gsl_vector_get(betas, i);
+        real_t sqrt_beta_i = sqrtq(beta_i) ;
+        auto erf = errfunc(sqrt_beta_i) ;
+        auto term = (1/ sqrt_beta_i)*expq(1.0/4.0*beta_i)* erf;
+        gsl_vector_set(S0i, i, term);
+    }
+
+    int status = gsl_linalg_LU_decomp (Ski, p, &s);
+    if ( status != GSL_SUCCESS ) {
+        throw std::runtime_error("LU Decomposition failed");
+    }
+
+    status = gsl_linalg_LU_solve (Ski, p, S0i, C);
+    if ( status != GSL_SUCCESS ) {
+        throw std::runtime_error("LU matrix solver failed");
+    }
+
+//    printf ("New C = \n");
+//    gsl_vector_fprintf (stdout, C, "%g");
+    for ( auto i = 0U ; i < N ; ++i ) {
+        gsl_vector_set(x,i+N, gsl_vector_get(C,i) );
+    }
+
+    gsl_permutation_free (p);
+    gsl_matrix_free(Ski);
+    gsl_vector_free(S0i);
+    gsl_vector_free(C);
+
+}
 
 } // namespace
 

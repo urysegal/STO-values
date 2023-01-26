@@ -90,13 +90,16 @@ estimate(nlohmann::json &input_set, nlohmann::json &output_set)
     add_system_info(program_info);
 
     Estimator estimator(input_set);
+    Calculated_C_Estimator constant_c_estimator(input_set);
 
     output_set["input"] = input_set;
     auto start_time = std::chrono::system_clock::now();
 
     program_info["start_time"] = time_to_string(start_time);
 
-    estimator.minimize_C_beta_together(output_set);
+    estimator.minimize(output_set);
+    constant_c_estimator.minimize(output_set);
+
     auto end_time = std::chrono::system_clock::now();
 
     program_info["end_time"] = time_to_string(end_time);
