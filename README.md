@@ -35,15 +35,14 @@ in considered inaccurate and the program will continue to iterate.
 The program works by using an iterative method to find Ci and Bi until
 they do not improve any more. When solving for a given N, the program needs the output
 of a previous run with N _prev_=N-1, in order to generate a good initial guess, unless N=1, which has a builtin initial guess.
+Two different approaches are tried, in one the set of parameters C is optimized with an iterative method and in the
+other they are directly calculated using the recent set of betas.
 
 The input is given in a JSON document as follows:
 ```
 {
   "number_of_terms" : The integer N above
   "max_iterations" : An integer limiting the maximum number of iterations per test value of N
-  "accuracy" : average accuracy desired, in root integral of error squared.
-  "test_points" : Integer number of test points
-  "max_test_error" : maximum error allowed at any test point
   "guess": A URL to the output of s2g used with N=number_of_terms-1
 }
 ```
@@ -53,9 +52,6 @@ Most fields have default values:
 ```
 {
   "max_iterations" : 1024,
-  "accuracy" : 3.2e-8,
-  "test_points" : 1024,
-  "max_test_error" : 1e-10
 }
 ```
 
@@ -69,31 +65,36 @@ The output is printed to standard output as JSON with three sections:
 {
     "input": {},
     "program_info": {},
-    "terms": [
-       { C : numer, b : number },
-       ...
-       { C : number, b: Number },
+    "estimates" : [
+       { 
+        C_method: "conjugate_grandient",
+        error: number, 
+        "terms": [
+           { C : numer, b : number },
+           ...
+           { C : number, b: Number },
+        ]
+       },
+       { 
+        C_method: "implied",
+        error: number, 
+        "terms": [
+           { C : numer, b : number },
+           ...
+           { C : number, b: Number },
+        ]
+       }
     ],
-    "accuracy" : number
-    "test_points": [
-       {
-        x: number,
-        sto: number,
-        estimate: number,
-        error: number
-        },
-        ...
-    ] 
+    "best_method": name of the best method
 }    
 ```
 
 The input section is just the input variables. The program_info contains
 various information about the program - which compiler was used, which CPU
-was used, versions of libraries used, running time, etc. The accuracy field 
-contains the root-squared-errors of all test point. The test_points contain
-the tests done - the x value, the sto value at that x, and the estimated 
-sto value. The difference is in the error field.
-
+was used, versions of libraries used, running time, etc. 
+The program uses two methods to calculate C, output of both is 
+given with the final error function result, plus a determination which one was better
+based on that.
 
 
 
@@ -119,6 +120,9 @@ The input is given in a JSON document as follows:
 {
   "sto_exponent": A number representing 'alpha' above,
   "estimator": A URL to the output of s2g ,
+   "test_points" : Integer number of test points
+  "max_test_error" : maximum error allowed at any test point
+
 }
 ```
 #### output
@@ -145,5 +149,7 @@ The output is printed to standard output as JSON with three sections:
     ] 
 }    
 
-
+The test_points array contain
+the tests done - the x value, the sto value at that x, and the estimated 
+sto value. The difference is in the error field.
 ###  integrate - Calculate 3- and 4- center STO integrals

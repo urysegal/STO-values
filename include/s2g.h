@@ -23,9 +23,7 @@ public:
 private:
     unsigned int number_of_terms = 128;
     unsigned int max_iterations = 1024;
-    unsigned int test_points = 1024;
-    double accuracy = 3.2e-8;
-    double max_test_error = 1e-10;
+    std::string guess_file;
 };
 
 class Estimator {
