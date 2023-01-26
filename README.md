@@ -65,18 +65,15 @@ The output is printed to standard output as JSON with three sections:
 {
     "input": {},
     "program_info": {},
-    "estimates" : [
-       { 
-        C_method: "conjugate_grandient",
-        error: number, 
-        "terms": [
-           { C : numer, b : number },
-           ...
-           { C : number, b: Number },
-        ]
+       "conjugate_grandient_C" :{ 
+            error: number, 
+            "terms": [
+               { C : numer, beta : number },
+               ...
+               { C : number, beta: Number },
+            ]
        },
-       { 
-        C_method: "implied",
+       "implied_C": { 
         error: number, 
         "terms": [
            { C : numer, b : number },
@@ -84,7 +81,7 @@ The output is printed to standard output as JSON with three sections:
            { C : number, b: Number },
         ]
        }
-    ],
+    }
     "best_method": name of the best method
 }    
 ```

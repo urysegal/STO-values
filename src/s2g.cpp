@@ -19,20 +19,25 @@ static nlohmann::json parse_args(int argc, const char **argv)
 {
     nlohmann::json input_set;
     unsigned int number_of_terms, max_iterations;
-    string guess_file;
+    string guess_file="-";
 
     po::options_description desc("s2g parameters:");
     desc.add_options()
             ("number_of_terms,N", po::value<unsigned int>(&number_of_terms)->required(), "number of terms in the approximate sum")
-            ("max_iterations", po::value<unsigned int>(&max_iterations)->default_value(1024), "Maximum number of iterations per trial N")
-            ("guess", po::value<string>(&guess_file)->required(), "Initial Guess from a previous run with N=N-1");
+            ("max_iterations,i", po::value<unsigned int>(&max_iterations)->default_value(1024), "Maximum number of iterations per trial N")
+            ("guess,g", po::value<string>(&guess_file), "If number_of_terms > 1, Initial Guess file from a previous run with N=N-1");
     try {
         po::variables_map vm;
         po::store(po::parse_command_line(argc, argv, desc), vm);
         po::notify(vm);
         input_set["number_of_terms"] = number_of_terms;
         input_set["max_iterations"] = max_iterations;
+        if ( number_of_terms > 1 and vm.count("guess") < 1 ) {
+            logger()->critical("FATAL: You must specify a guess file when number_of_terms > 1");
+            exit(1);
+        }
         input_set["guess"] = guess_file;
+
     } catch (po::error &e) {
         std::stringstream desc_str;
         desc_str << desc;

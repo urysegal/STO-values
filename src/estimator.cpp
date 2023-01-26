@@ -141,12 +141,11 @@ my_df (const gsl_vector *v, void *params, gsl_vector *df)
 
 void Estimator::minimize(nlohmann::json &output_json)
 {
-    size_t iter = 0;
+    iter = 0;
     int status;
     int n = N*2;
 
     const gsl_multimin_fdfminimizer_type *T;
-    gsl_multimin_fdfminimizer *s;
 
     gsl_multimin_function_fdf my_func;
 
@@ -156,9 +155,7 @@ void Estimator::minimize(nlohmann::json &output_json)
     my_func.fdf = my_fdf;
     my_func.params = this;
 
-    x = gsl_vector_alloc (n);
-    gsl_vector_set (x, 0, 0.27);
-    gsl_vector_set (x, 1, 1.0);
+    setup_initial_guess();
 
     T = gsl_multimin_fdfminimizer_conjugate_fr;
     s = gsl_multimin_fdfminimizer_alloc (T, n);
@@ -170,26 +167,36 @@ void Estimator::minimize(nlohmann::json &output_json)
         iter++;
         status = gsl_multimin_fdfminimizer_iterate (s);
 
+        this->estimate_error = s->f;
+
         if (status)
             break;
 
         status = gsl_multimin_test_gradient (s->gradient, 1e-3);
 
         if (status == GSL_SUCCESS)
-            printf ("Minimum found at:\n");
+            fprintf (stderr,"Minimum found at:\n");
 
-        printf ("%5lu beta=%.5f C=%.5f f=%10.5f\n", iter,
+        fprintf (stderr,"%5lu beta=%.5f C=%.5f f=%10.5f\n", iter,
                 gsl_vector_get (s->x, 0),
                 gsl_vector_get (s->x, 1),
                 s->f);
 
     }
     while (status == GSL_CONTINUE && iter < args.get_max_iterations());
+    output_results(output_json, s->x, s->x);
 
-    gsl_multimin_fdfminimizer_free (s);
-    gsl_vector_free (x);
 
 }
+
+Estimator::~Estimator() noexcept
+{
+    gsl_vector_free (x);
+    x=nullptr;
+    gsl_multimin_fdfminimizer_free (s);
+    s = nullptr;
+}
+
 
 void Calculated_C_Estimator::average_error_df_beta_only(const gsl_vector *v, gsl_vector *df)
 {
@@ -218,14 +225,45 @@ beta_only_df (const gsl_vector *v, void *params, gsl_vector *df)
     args->average_error_df_beta_only(v,df);
 }
 
+void Estimator::setup_initial_guess()
+{
+    x = gsl_vector_alloc (N*2);
+    if ( N ==1 ) {
+        gsl_vector_set(x, 0, 0.27);
+        gsl_vector_set(x, 1, 1);
+    } else {
+
+    }
+}
+
+void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_vector, const gsl_vector *beta_vector)
+{
+    for ( auto i = 0U ; i < N ; i++ ) {
+        result_term new_term= { gsl_vector_get(C_vector, N+i), gsl_vector_get(beta_vector, i)} ;
+        this->terms.emplace_back(new_term);
+    }
+
+    nlohmann::json result;
+    result["error"] = this->estimate_error;
+    result["iterations"] = iter;
+    std::vector<nlohmann::json> json_terms;
+    for ( auto const &it : terms ) {
+        nlohmann::json term;
+        term["C"] = it.C;
+        term["beta"] = it.beta;
+        json_terms.emplace_back(term);
+    }
+    result["terms"] = json_terms;
+    output_json[get_method_name()] = result;
+    std::cout << result << std::endl;
+}
 
 void Calculated_C_Estimator::minimize(nlohmann::json &output_json)
 {
-    size_t iter = 0;
+    iter = 0;
     int status;
 
     const gsl_multimin_fdfminimizer_type *T;
-    gsl_multimin_fdfminimizer *s;
 
     gsl_multimin_function_fdf my_func;
 
@@ -235,9 +273,7 @@ void Calculated_C_Estimator::minimize(nlohmann::json &output_json)
     my_func.fdf = beta_only_fdf;
     my_func.params = this;
 
-    x = gsl_vector_alloc (N*2);
-    gsl_vector_set (x, 0, 0.27);
-    gsl_vector_set (x, 1, 1.0);
+    setup_initial_guess();
 
     T = gsl_multimin_fdfminimizer_conjugate_fr;
     s = gsl_multimin_fdfminimizer_alloc (T, N);
@@ -253,6 +289,7 @@ void Calculated_C_Estimator::minimize(nlohmann::json &output_json)
 
         iter++;
         status = gsl_multimin_fdfminimizer_iterate (s);
+        this->estimate_error = s->f;
 
         if (status)
             break;
@@ -262,8 +299,7 @@ void Calculated_C_Estimator::minimize(nlohmann::json &output_json)
         if (status == GSL_SUCCESS)
             printf ("Minimum found at:\n");
 
-
-        printf ("%5lu beta=%.5f C=%.5f f=%10.5f\n", iter,
+        fprintf (stderr,"%5lu beta=%.5f C=%.5f f=%10.5f\n", iter,
                 gsl_vector_get (s->x, 0),
                 gsl_vector_get (x, 1),
                 s->f);
@@ -271,8 +307,7 @@ void Calculated_C_Estimator::minimize(nlohmann::json &output_json)
     }
     while (status == GSL_CONTINUE && iter < args.get_max_iterations());
 
-    gsl_multimin_fdfminimizer_free (s);
-    gsl_vector_free (x);
+    output_results(output_json, x, s->x);
 
 }
 
@@ -282,7 +317,6 @@ void Estimator::update_C(gsl_vector *betas)
     gsl_vector *S0i = gsl_vector_alloc(N);
     gsl_vector *C = gsl_vector_alloc (N);
 
-    int s;
     gsl_permutation * p = gsl_permutation_alloc (N);
 
     for ( auto k = 0U ; k < N ; ++k ) {
@@ -302,7 +336,8 @@ void Estimator::update_C(gsl_vector *betas)
         gsl_vector_set(S0i, i, term);
     }
 
-    int status = gsl_linalg_LU_decomp (Ski, p, &s);
+    int decomp_sign = 0;
+    int status = gsl_linalg_LU_decomp (Ski, p, &decomp_sign);
     if ( status != GSL_SUCCESS ) {
         throw std::runtime_error("LU Decomposition failed");
     }
