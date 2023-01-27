@@ -286,11 +286,16 @@ void Estimator::setup_initial_guess()
 
 void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_vector, const gsl_vector *beta_vector)
 {
+    double real_res = exp(-1);
+    double estimate = 0;
     for ( auto i = 0U ; i < N ; i++ ) {
+        auto C = gsl_vector_get(C_vector, N+i) ;
+        auto beta = gsl_vector_get(beta_vector, i);
+        estimate += C* exp(-beta);
         result_term new_term= { gsl_vector_get(C_vector, N+i), gsl_vector_get(beta_vector, i)} ;
         this->terms.emplace_back(new_term);
     }
-
+    fprintf(stderr, "At X=1, %f %f (err = %f)\n", real_res, estimate, abs(real_res-estimate));
     nlohmann::json result;
     result["error"] = this->estimate_error;
     result["iterations"] = iter;
@@ -393,7 +398,7 @@ void Calculated_C_Estimator::minimize(nlohmann::json &output_json)
         if (status)
             break;
 
-        status = gsl_multimin_test_gradient (s->gradient, 1e-3);
+        status = gsl_multimin_test_gradient (s->gradient, 1e-4);
 
         if (status == GSL_SUCCESS)
             fprintf (stderr, "Minimum found at:\n");
