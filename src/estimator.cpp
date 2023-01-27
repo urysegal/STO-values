@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <gsl/gsl_multimin.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_sf_erf.h>
@@ -11,6 +12,8 @@
 #include "logger.h"
 
 #define GET_beta(i) gsl_vector_get(v, (i))
+
+using namespace std;
 
 namespace stovalues {
 
@@ -232,6 +235,30 @@ void Estimator::setup_initial_guess()
         gsl_vector_set(x, 0, 0.27);
         gsl_vector_set(x, 1, 1);
     } else {
+        try {
+            std::ifstream ifs(args.get_guess_file());
+            nlohmann::json jf = nlohmann::json::parse(ifs);
+            if ( jf["N"] >= N-1 ) {
+                logger()->critical("Guess file {} does not contain enough terms: has {}. {} needed.",
+                                   args.get_guess_file(), jf["N"], N-1);
+                exit(1);
+            }
+            string best_method = jf["best_method"];
+            nlohmann::json method_output = jf[best_method];
+            nlohmann::json terms_output = method_output["terms"];
+            unsigned int i = 0;
+            for ( auto &it: terms_output ) {
+                if ( i == N-1) {
+                    break;
+                }
+                gsl_vector_set(x, i, it["beta"]);
+                gsl_vector_set(x, i+N, it["C"]);
+                ++i;
+            }
+        } catch (std::exception &e) {
+            logger()->critical("Reading Guess: FATAL: {}", std::string(e.what()));
+            exit(1);
+        }
 
     }
 }

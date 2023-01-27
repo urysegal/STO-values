@@ -19,7 +19,7 @@ public:
 
     auto get_number_of_terms() const { return number_of_terms; }
     auto get_max_iterations() const { return max_iterations; }
-
+    auto get_guess_file() const { return guess_file; }
 private:
     unsigned int number_of_terms = 128;
     unsigned int max_iterations = 1024;
