@@ -65,7 +65,7 @@ The output is printed to standard output as JSON with three sections:
 {
     "input": {},
     "program_info": {},
-       "conjugate_grandient_C" :{ 
+       "C_conjugate_grandient" :{ 
             error: number, 
             "terms": [
                { C : numer, beta : number },
@@ -73,12 +73,12 @@ The output is printed to standard output as JSON with three sections:
                { C : number, beta: Number },
             ]
        },
-       "implied_C": { 
+       "C_implied": { 
         error: number, 
         "terms": [
-           { C : numer, b : number },
+           { C : numer, beta: number },
            ...
-           { C : number, b: Number },
+           { C : number, beta: Number },
         ]
        }
     }

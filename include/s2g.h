@@ -41,6 +41,7 @@ public:
     double average_error (const gsl_vector *v);
     void average_error_df (const gsl_vector *v, gsl_vector *df);
     virtual std::string get_method_name() const { return "C_conjugate_gradients"; }
+    auto get_estimate_error() const { return estimate_error; }
 
 protected:
 

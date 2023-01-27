@@ -101,6 +101,12 @@ estimate(nlohmann::json &input_set, nlohmann::json &output_set)
     estimator.minimize(output_set);
     constant_c_estimator.minimize(output_set);
 
+    if ( estimator.get_estimate_error() < constant_c_estimator.get_estimate_error()) {
+        output_set["best_method"] = estimator.get_method_name();
+    } else {
+        output_set["best_method"] = constant_c_estimator.get_method_name();
+    }
+
     auto end_time = std::chrono::system_clock::now();
 
     program_info["end_time"] = time_to_string(end_time);
@@ -125,7 +131,7 @@ main(int argc, const char *argv[])
 
     estimate(input_set, output_set);
 
-    cout << output_set;
+    cout << output_set << endl;
 
     stovalues_global_cleanup();
 
