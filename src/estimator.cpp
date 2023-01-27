@@ -166,7 +166,7 @@ void Estimator::minimize(nlohmann::json &output_json)
     T = gsl_multimin_fdfminimizer_conjugate_fr;
     s = gsl_multimin_fdfminimizer_alloc (T, n);
 
-    gsl_multimin_fdfminimizer_set (s, &my_func, x, 0.01, 0.1);
+    gsl_multimin_fdfminimizer_set (s, &my_func, x, 0.000001, 0.000000001);
 
     do
     {
@@ -178,12 +178,12 @@ void Estimator::minimize(nlohmann::json &output_json)
         if (status)
             break;
 
-        status = gsl_multimin_test_gradient (s->gradient, 1e-3);
+        status = gsl_multimin_test_gradient (s->gradient, 1e-8);
 
         if (status == GSL_SUCCESS)
             fprintf (stderr,"Minimum found at:\n");
 
-        fprintf (stderr,"%5lu beta=%.5f C=%.5f f=%10.5f\n", iter,
+        fprintf (stderr,"%u %5lu beta=%.5f C=%.5f f=%10.15f\n", N, iter,
                 gsl_vector_get (s->x, 0),
                 gsl_vector_get (s->x, 1),
                 s->f);
@@ -273,7 +273,7 @@ void Estimator::setup_initial_guess()
                 gsl_vector_set(x, i+N, last_C);
                 ++i;
             }
-            gsl_vector_set(x, N-1, last_beta*3);
+            gsl_vector_set(x, N-1, last_beta*1.1);
             gsl_vector_set(x, (2*N)-1, last_C/double (N));
 #endif
         } catch (std::exception &e) {
@@ -286,12 +286,13 @@ void Estimator::setup_initial_guess()
 
 void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_vector, const gsl_vector *beta_vector)
 {
-    double real_res = exp(-0.1);
+    double test_x = 0.1;
+    double real_res = exp(-test_x);
     double estimate = 0;
     for ( auto i = 0U ; i < N ; i++ ) {
         auto C = gsl_vector_get(C_vector, N+i) ;
         auto beta = gsl_vector_get(beta_vector, i);
-        estimate += C* exp(-beta*0.1);
+        estimate += C* exp(-beta*(test_x*test_x));
         result_term new_term= { gsl_vector_get(C_vector, N+i), gsl_vector_get(beta_vector, i)} ;
         this->terms.emplace_back(new_term);
     }
