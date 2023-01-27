@@ -286,12 +286,12 @@ void Estimator::setup_initial_guess()
 
 void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_vector, const gsl_vector *beta_vector)
 {
-    double real_res = exp(-1);
+    double real_res = exp(-0.1);
     double estimate = 0;
     for ( auto i = 0U ; i < N ; i++ ) {
         auto C = gsl_vector_get(C_vector, N+i) ;
         auto beta = gsl_vector_get(beta_vector, i);
-        estimate += C* exp(-beta);
+        estimate += C* exp(-beta*0.1);
         result_term new_term= { gsl_vector_get(C_vector, N+i), gsl_vector_get(beta_vector, i)} ;
         this->terms.emplace_back(new_term);
     }
@@ -383,7 +383,7 @@ void Calculated_C_Estimator::minimize(nlohmann::json &output_json)
     s = gsl_multimin_fdfminimizer_alloc (T, N);
 
     gsl_vector_view sx = gsl_vector_subvector(x, 0, N);
-    gsl_multimin_fdfminimizer_set (s, &my_func, &sx.vector, 0.01, 0.1);
+    gsl_multimin_fdfminimizer_set (s, &my_func, &sx.vector, 0.001, 0.001);
 
     fprintf (stderr, "\nDirectly Calculated C:\n");
 
