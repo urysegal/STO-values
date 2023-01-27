@@ -69,14 +69,15 @@ double Estimator::diff_by_Ci(const gsl_vector *v, size_t i)
 
         real_t Cj = GET_C(v, j);
         real_t beta_j = GET_beta(j);
-        sum += Cj/(sqrtq(beta_i+beta_j));
-
-        real_t sqrt_beta_j = sqrtq(beta_j);
-        real_t term = (1.0/sqrtq(beta_j))*expq(1/(4.0*beta_j)) * errfunc(sqrt_beta_j);
-        sum -= sqrt_pi*term;
+        sum += Cj / (sqrtq(beta_i + beta_j));
     }
+    sum *= sqrt_pi;
 
-    return sqrt_pi*sum;
+    real_t sqrt_beta_i = sqrtq(beta_i);
+    real_t term = (1.0/sqrtq(beta_i))*expq(1/(4.0*beta_i)) * errfunc(sqrt_beta_i);
+    sum -= sqrt_pi*term;
+
+    return sum;
 }
 
 double Estimator::diff_by_bi(const gsl_vector *v, size_t i)
@@ -89,18 +90,20 @@ double Estimator::diff_by_bi(const gsl_vector *v, size_t i)
 
     real_t sum = 0;
     for (auto j = 0U; j < N; ++j) {
-
         real_t Cj = GET_C(v, j);
         real_t beta_j = GET_beta(j);
-
-        auto err = errfunc(sqrtq(beta_j));
-        auto exp = expq(1/(4*beta_j));
         sum += Ci*Cj*1.0/sqrtq(powq(beta_i+beta_j,3.0)) ;
-        sum += half_sqrt_pi * Ci * beta_i_pow_neg_3_2* exp * err ;
-        sum += quarter_sqrt_pi * Ci * beta_i_pow_neg_5_2 * exp * err ;
-        sum -= Ci/(2*beta_j*beta_j);
     }
-    return -half_sqrt_pi*sum;
+    sum *= -half_sqrt_pi;
+
+    auto err = errfunc(sqrtq(beta_i));
+    auto exp = expq(1/(4*beta_i));
+
+    sum += half_sqrt_pi * Ci * beta_i_pow_neg_3_2* exp * err ;
+    sum += quarter_sqrt_pi * Ci * beta_i_pow_neg_5_2 * exp * err ;
+    sum -= Ci/(2*beta_i*beta_i);
+
+    return sum;
 }
 
 
@@ -243,18 +246,36 @@ void Estimator::setup_initial_guess()
                                    args.get_guess_file(), jf["N"], N-1);
                 exit(1);
             }
+#if 0
+            double dat[] = {
+            0.3189040000E+01     ,  0.3627800244E+00,  0.9348630000E+01    ,   0.4684630315E+00
+            };
+            for ( auto i = 0U ; i < 4 ; ++i ) {
+               gsl_vector_set(x, i, dat[i]);
+//               gsl_vector_set(x, i+N, (i+1)*2);
+            }
+#else
             string best_method = jf["best_method"];
             nlohmann::json method_output = jf[best_method];
             nlohmann::json terms_output = method_output["terms"];
             unsigned int i = 0;
+            double sum_beta = 0;
+            double last_beta = 0;
+            double last_C = 0;
             for ( auto &it: terms_output ) {
                 if ( i == N-1) {
                     break;
                 }
-                gsl_vector_set(x, i, it["beta"]);
-                gsl_vector_set(x, i+N, it["C"]);
+                last_beta = double(it["beta"]);
+                sum_beta += sum_beta;
+                gsl_vector_set(x, i, last_beta);
+                last_C = it["C"];
+                gsl_vector_set(x, i+N, last_C);
                 ++i;
             }
+            gsl_vector_set(x, N-1, last_beta*3);
+            gsl_vector_set(x, (2*N)-1, last_C/double (N));
+#endif
         } catch (std::exception &e) {
             logger()->critical("Reading Guess: FATAL: {}", std::string(e.what()));
             exit(1);
@@ -282,7 +303,7 @@ void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_
     }
     result["terms"] = json_terms;
     output_json[get_method_name()] = result;
-    //std::cout << result << std::endl;
+    std::cerr << result << std::endl;
 }
 
 

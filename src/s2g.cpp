@@ -91,7 +91,7 @@ estimate(nlohmann::json &input_set, nlohmann::json &output_set)
     add_system_info(program_info);
 
     Estimator estimator(input_set);
-    Calculated_C_Estimator constant_c_estimator(input_set);
+    //Calculated_C_Estimator constant_c_estimator(input_set);
 
     output_set["input"] = input_set;
     auto start_time = std::chrono::system_clock::now();
@@ -99,13 +99,13 @@ estimate(nlohmann::json &input_set, nlohmann::json &output_set)
     program_info["start_time"] = time_to_string(start_time);
 
     estimator.minimize(output_set);
-    constant_c_estimator.minimize(output_set);
+    //constant_c_estimator.minimize(output_set);
 
-    if ( estimator.get_estimate_error() < constant_c_estimator.get_estimate_error()) {
+    //if ( estimator.get_estimate_error() < constant_c_estimator.get_estimate_error()) {
         output_set["best_method"] = estimator.get_method_name();
-    } else {
-        output_set["best_method"] = constant_c_estimator.get_method_name();
-    }
+    //} else {
+      //  output_set["best_method"] = constant_c_estimator.get_method_name();
+    //}
 
     auto end_time = std::chrono::system_clock::now();
 

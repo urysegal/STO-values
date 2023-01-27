@@ -34,7 +34,7 @@ in considered inaccurate and the program will continue to iterate.
 
 The program works by using an iterative method to find Ci and Bi until
 they do not improve any more. When solving for a given N, the program needs the output
-of a previous run with N _prev_=N-1, in order to generate a good initial guess, unless N=1, which has a builtin initial guess.
+of a previous run with N _prev_>=N-1, in order to generate a good initial guess, unless N=1, which has a builtin initial guess.
 Two different approaches are tried, in one the set of parameters C is optimized with an iterative method and in the
 other they are directly calculated using the recent set of betas.
 
@@ -43,7 +43,7 @@ The input is given in a JSON document as follows:
 {
   "number_of_terms" : The integer N above
   "max_iterations" : An integer limiting the maximum number of iterations per test value of N
-  "guess": A URL to the output of s2g used with N=number_of_terms-1
+  "guess": A URL to the output of s2g used with N>=number_of_terms-1
 }
 ```
 
