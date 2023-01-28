@@ -181,6 +181,7 @@ void Estimator::setup_initial_guess()
                 exit(1);
             }
 #if 0
+            // with N=11, this yeild error of 1e-7
             double beta = 0.002;
             for ( auto i = 0U ; i < N ; ++i ) {
                 gsl_vector_set(x, i, beta);
