@@ -58,6 +58,8 @@ protected:
     double tolerance = 1e-11;
     double stop_gradient = 1e-12;
 
+    static real_t errfunc(real_t sqrt_beta);
+
 
     double diff_by_Ci(const gsl_vector *v, size_t i);
     double diff_by_bi(const gsl_vector *v, size_t i);

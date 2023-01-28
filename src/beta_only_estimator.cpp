@@ -96,4 +96,60 @@ void Calculated_C_Estimator::minimize(nlohmann::json &output_json)
     output_results(output_json, x, s->x);
 }
 
+void Estimator::update_C(gsl_vector *betas)
+{
+    gsl_matrix *Ski = gsl_matrix_alloc(N, N);
+  //  gsl_matrix *Ski_orig = gsl_matrix_alloc(N, N);
+
+    gsl_vector *S0i = gsl_vector_alloc(N);
+    gsl_vector *C = gsl_vector_alloc (N);
+
+    gsl_permutation * p = gsl_permutation_alloc (N);
+
+    for ( auto k = 0U ; k < N ; ++k ) {
+        for ( auto i = 0U ; i < N ; ++i ) {
+            real_t beta_k = gsl_vector_get(betas, k);
+            real_t beta_i = gsl_vector_get(betas, i);
+            auto term = 1.0/sqrtq(beta_i+beta_k);
+            gsl_matrix_set(Ski,k,i,term);
+       //     gsl_matrix_set(Ski_orig,k,i,term);
+
+        }
+    }
+
+    for ( auto i = 0U ; i < N ; ++i ) {
+        real_t beta_i = gsl_vector_get(betas, i);
+        real_t sqrt_beta_i = sqrtq(beta_i) ;
+        auto erf = errfunc(sqrt_beta_i) ;
+        auto term = (1/ sqrt_beta_i)*expq(1.0/4.0*beta_i)* erf;
+        gsl_vector_set(S0i, i, term);
+    }
+
+    int decomp_sign = 0;
+    int status = gsl_linalg_LU_decomp (Ski, p, &decomp_sign);
+    if ( status != GSL_SUCCESS ) {
+        throw std::runtime_error("LU Decomposition failed");
+    }
+
+    status = gsl_linalg_LU_solve (Ski, p, S0i, C);
+    if ( status != GSL_SUCCESS ) {
+        throw std::runtime_error("LU matrix solver failed");
+    }
+
+//    printf ("New C = \n");
+//    gsl_vector_fprintf (stdout, C, "%g");
+    for ( auto i = 0U ; i < N ; ++i ) {
+        gsl_vector_set(x,i+N, gsl_vector_get(C,i) );
+    }
+
+    //gsl_vector *y = gsl_vector_alloc (N);
+   // gsl_blas_dgemv(CblasNoTrans, 1, Ski_orig , C, 1, y);
+    gsl_permutation_free (p);
+    gsl_matrix_free(Ski);
+    gsl_vector_free(S0i);
+    gsl_vector_free(C);
+   // gsl_vector_free(y);
+
+}
+
 }
