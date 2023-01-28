@@ -24,7 +24,7 @@ static nlohmann::json parse_args(int argc, const char **argv)
     po::options_description desc("s2g parameters:");
     desc.add_options()
             ("number_of_terms,N", po::value<unsigned int>(&number_of_terms)->required(), "number of terms in the approximate sum")
-            ("max_iterations,i", po::value<unsigned int>(&max_iterations)->default_value(1024), "Maximum number of iterations per trial N")
+            ("max_iterations,i", po::value<unsigned int>(&max_iterations)->default_value(204800), "Maximum number of iterations per trial N")
             ("guess,g", po::value<string>(&guess_file), "If number_of_terms > 1, Initial Guess file from a previous run with N=N-1");
     try {
         po::variables_map vm;

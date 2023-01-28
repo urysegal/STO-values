@@ -17,7 +17,6 @@ using namespace std;
 
 namespace stovalues {
 
-typedef  __float128 real_t;
 
 real_t pi = std::numbers::pi_v<long double>;
 real_t sqrt_pi = sqrtq(pi);
@@ -131,7 +130,7 @@ my_fdf (const gsl_vector *x, void *params,
     args->average_error_df(x, df);
 }
 
-double
+static double
 my_f (const gsl_vector *v, void *params)
 {
     auto args = static_cast<Estimator *>(params);
@@ -145,55 +144,7 @@ my_df (const gsl_vector *v, void *params, gsl_vector *df)
     args->average_error_df(v,df);
 }
 
-void Estimator::minimize(nlohmann::json &output_json)
-{
-    iter = 0;
-    int status;
-    int n = N*2;
 
-    const gsl_multimin_fdfminimizer_type *T;
-
-    gsl_multimin_function_fdf my_func;
-
-    my_func.n = n;
-    my_func.f = my_f;
-    my_func.df = my_df;
-    my_func.fdf = my_fdf;
-    my_func.params = this;
-
-    setup_initial_guess();
-
-    T = gsl_multimin_fdfminimizer_conjugate_fr;
-    s = gsl_multimin_fdfminimizer_alloc (T, n);
-
-    gsl_multimin_fdfminimizer_set (s, &my_func, x, 0.000001, 0.000000001);
-
-    do
-    {
-        iter++;
-        status = gsl_multimin_fdfminimizer_iterate (s);
-
-        this->estimate_error = s->f;
-
-        if (status)
-            break;
-
-        status = gsl_multimin_test_gradient (s->gradient, 1e-8);
-
-        if (status == GSL_SUCCESS)
-            fprintf (stderr,"Minimum found at:\n");
-
-        fprintf (stderr,"%u %5lu beta=%.5f C=%.5f f=%10.15f\n", N, iter,
-                gsl_vector_get (s->x, 0),
-                gsl_vector_get (s->x, 1),
-                s->f);
-
-    }
-    while (status == GSL_CONTINUE && iter < args.get_max_iterations());
-    output_results(output_json, s->x, s->x);
-
-
-}
 
 Estimator::~Estimator()
 {
@@ -213,23 +164,6 @@ void Calculated_C_Estimator::average_error_df_beta_only(const gsl_vector *v, gsl
     }
 }
 
-/* Compute both f and df together. */
-void
-beta_only_fdf (const gsl_vector *x, void *params,
-        double *f, gsl_vector *df)
-{
-    auto args = static_cast<Calculated_C_Estimator *>(params);
-
-    *f = args->average_error(x);
-    args->average_error_df_beta_only(x, df);
-}
-
-void
-beta_only_df (const gsl_vector *v, void *params, gsl_vector *df)
-{
-    auto args = static_cast<Calculated_C_Estimator *>(params);
-    args->average_error_df_beta_only(v,df);
-}
 
 void Estimator::setup_initial_guess()
 {
@@ -274,6 +208,7 @@ void Estimator::setup_initial_guess()
                 ++i;
             }
             gsl_vector_set(x, N-1, last_beta*1.1);
+            //this->update_C(x);
             gsl_vector_set(x, (2*N)-1, last_C/double (N));
 #endif
         } catch (std::exception &e) {
@@ -296,7 +231,7 @@ void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_
         result_term new_term= { gsl_vector_get(C_vector, N+i), gsl_vector_get(beta_vector, i)} ;
         this->terms.emplace_back(new_term);
     }
-    fprintf(stderr, "At X=1, %f %f (err = %f)\n", real_res, estimate, abs(real_res-estimate));
+    fprintf(stderr, "At X=%f, %f %f (err = %f)\n", test_x, real_res, estimate, abs(real_res-estimate));
     nlohmann::json result;
     result["error"] = this->estimate_error;
     result["iterations"] = iter;
@@ -363,56 +298,53 @@ void Estimator::update_C(gsl_vector *betas)
 
 }
 
-void Calculated_C_Estimator::minimize(nlohmann::json &output_json)
+void Estimator::minimize(nlohmann::json &output_json)
 {
     iter = 0;
     int status;
+    int n = N*2;
 
     const gsl_multimin_fdfminimizer_type *T;
 
     gsl_multimin_function_fdf my_func;
 
-    my_func.n = N;
+    my_func.n = n;
     my_func.f = my_f;
-    my_func.df = beta_only_df;
-    my_func.fdf = beta_only_fdf;
+    my_func.df = my_df;
+    my_func.fdf = my_fdf;
     my_func.params = this;
 
     setup_initial_guess();
 
     T = gsl_multimin_fdfminimizer_conjugate_fr;
-    s = gsl_multimin_fdfminimizer_alloc (T, N);
+    s = gsl_multimin_fdfminimizer_alloc (T, n);
 
-    gsl_vector_view sx = gsl_vector_subvector(x, 0, N);
-    gsl_multimin_fdfminimizer_set (s, &my_func, &sx.vector, 0.001, 0.001);
-
-    fprintf (stderr, "\nDirectly Calculated C:\n");
+    gsl_multimin_fdfminimizer_set (s, &my_func, x, step_size, tolerance);
 
     do
     {
-        update_C(s->x);
-
         iter++;
         status = gsl_multimin_fdfminimizer_iterate (s);
+
         this->estimate_error = s->f;
 
         if (status)
             break;
 
-        status = gsl_multimin_test_gradient (s->gradient, 1e-4);
+        status = gsl_multimin_test_gradient (s->gradient, stop_gradient);
 
         if (status == GSL_SUCCESS)
-            fprintf (stderr, "Minimum found at:\n");
+            fprintf (stderr,"Minimum found at:\n");
 
-        fprintf (stderr,"%5lu beta=%.5f C=%.5f f=%10.5f\n", iter,
-                 gsl_vector_get (s->x, 0),
-                 gsl_vector_get (x, 1),
-                 s->f);
-
+        if ( iter % 100 == 1 ) {
+            fprintf(stderr, "%u %5lu f=%10.15f\n", N, iter,
+                    s->f);
+        }
     }
     while (status == GSL_CONTINUE && iter < args.get_max_iterations());
+    output_results(output_json, s->x, s->x);
 
-    output_results(output_json, x, s->x);
+
 }
 
 } // namespace

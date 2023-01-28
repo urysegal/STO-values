@@ -9,6 +9,8 @@
 
 namespace stovalues {
 
+typedef  __float128 real_t;
+
 
 void stovalues_global_cleanup();
 void stovalues_global_init();
@@ -52,6 +54,9 @@ protected:
     size_t iter = 0;
     std::vector<result_term> terms;
     gsl_multimin_fdfminimizer *s = nullptr;
+    double step_size = 1e-6;
+    double tolerance = 1e-11;
+    double stop_gradient = 1e-12;
 
 
     double diff_by_Ci(const gsl_vector *v, size_t i);
