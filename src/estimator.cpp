@@ -181,19 +181,17 @@ void Estimator::setup_initial_guess()
                 exit(1);
             }
 #if 0
-            double dat[] = {
-            0.3189040000E+01     ,  0.3627800244E+00,  0.9348630000E+01    ,   0.4684630315E+00
-            };
-            for ( auto i = 0U ; i < 4 ; ++i ) {
-               gsl_vector_set(x, i, dat[i]);
-//               gsl_vector_set(x, i+N, (i+1)*2);
+            double beta = 0.002;
+            for ( auto i = 0U ; i < N ; ++i ) {
+                gsl_vector_set(x, i, beta);
+                beta *= 2;
+                gsl_vector_set(x, i+N, 1);
             }
 #else
             string best_method = jf["best_method"];
             nlohmann::json method_output = jf[best_method];
             nlohmann::json terms_output = method_output["terms"];
             unsigned int i = 0;
-            double sum_beta = 0;
             double last_beta = 0;
             double last_C = 0;
             for ( auto &it: terms_output ) {
@@ -201,13 +199,12 @@ void Estimator::setup_initial_guess()
                     break;
                 }
                 last_beta = double(it["beta"]);
-                sum_beta += last_beta;
                 gsl_vector_set(x, i, last_beta);
                 last_C = it["C"];
                 gsl_vector_set(x, i+N, last_C);
                 ++i;
             }
-            gsl_vector_set(x, N-1, sum_beta*1.1);
+            gsl_vector_set(x, N-1, last_beta*1.1);
             //this->update_C(x);
             gsl_vector_set(x, (2*N)-1, last_C/double (N));
 #endif
