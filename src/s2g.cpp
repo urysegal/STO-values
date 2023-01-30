@@ -18,13 +18,14 @@ namespace stovalues {
 static nlohmann::json parse_args(int argc, const char **argv)
 {
     nlohmann::json input_set;
-    unsigned int number_of_terms, max_iterations;
+    unsigned int number_of_terms, max_iterations, max_guesses;
     string guess_file="-";
 
     po::options_description desc("s2g parameters:");
     desc.add_options()
             ("number_of_terms,N", po::value<unsigned int>(&number_of_terms)->required(), "number of terms in the approximate sum")
-            ("max_iterations,i", po::value<unsigned int>(&max_iterations)->default_value(204800), "Maximum number of iterations per trial N")
+            ("max_iterations,i", po::value<unsigned int>(&max_iterations)->default_value(204800), "Maximum number of iterations ")
+            ("max_guesses,m", po::value<unsigned int>(&max_guesses)->default_value(1024), "Maximum number of guesses")
             ("guess,g", po::value<string>(&guess_file), "If number_of_terms > 1, Initial Guess file from a previous run with N=N-1");
     try {
         po::variables_map vm;
@@ -32,6 +33,7 @@ static nlohmann::json parse_args(int argc, const char **argv)
         po::notify(vm);
         input_set["number_of_terms"] = number_of_terms;
         input_set["max_iterations"] = max_iterations;
+        input_set["max_guesses"] = max_guesses;
         if ( number_of_terms > 1 and vm.count("guess") < 1 ) {
             logger()->critical("FATAL: You must specify a guess file when number_of_terms > 1");
             exit(1);
@@ -90,7 +92,6 @@ estimate(nlohmann::json &input_set, nlohmann::json &output_set)
 
     add_system_info(program_info);
 
-    Estimator estimator(input_set);
     //Calculated_C_Estimator constant_c_estimator(input_set);
 
     output_set["input"] = input_set;
@@ -98,20 +99,33 @@ estimate(nlohmann::json &input_set, nlohmann::json &output_set)
 
     program_info["start_time"] = time_to_string(start_time);
 
-    estimator.minimize(output_set);
-    //constant_c_estimator.minimize(output_set);
+    double best_so_far = 99999999;
+    nlohmann::json best_json;
+    for(unsigned int i =0U; i < 10240 ; ++i ) {
+        Estimator estimator(input_set);
+        estimator.minimize(output_set);
 
-    //if ( estimator.get_estimate_error() < constant_c_estimator.get_estimate_error()) {
+        if ( estimator.get_estimate_error() < best_so_far ) {
+            best_so_far = estimator.get_estimate_error();
+            cout << "Best :" << estimator.get_output_set() << endl;
+            best_json =  estimator.get_output_set();
+        }
+
+        //constant_c_estimator.minimize(output_set);
+
+        //if ( estimator.get_estimate_error() < constant_c_estimator.get_estimate_error()) {
         output_set["best_method"] = estimator.get_method_name();
-    //} else {
-      //  output_set["best_method"] = constant_c_estimator.get_method_name();
-    //}
-
+        //} else {
+        //  output_set["best_method"] = constant_c_estimator.get_method_name();
+        //}
+    }
     auto end_time = std::chrono::system_clock::now();
 
     program_info["end_time"] = time_to_string(end_time);
     program_info["run_time_seconds"] = std::chrono::duration_cast<std::chrono::seconds>(end_time - start_time).count();
     output_set["program_info"] = program_info;
+    cout << "Best :" << best_json << endl;
+    output_set["best"]   = best_json;
 }
 
 

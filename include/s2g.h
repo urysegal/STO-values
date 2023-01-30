@@ -22,10 +22,13 @@ public:
     auto get_number_of_terms() const { return number_of_terms; }
     auto get_max_iterations() const { return max_iterations; }
     auto get_guess_file() const { return guess_file; }
+    auto get_max_guesses() const { return max_guesses; }
+
 private:
     unsigned int number_of_terms = 128;
     unsigned int max_iterations = 1024;
     std::string guess_file;
+    unsigned int max_guesses = 1024;
 };
 
 struct result_term {
@@ -44,6 +47,7 @@ public:
     void average_error_df (const gsl_vector *v, gsl_vector *df);
     virtual std::string get_method_name() const { return "C_conjugate_gradients"; }
     auto get_estimate_error() const { return estimate_error; }
+    const nlohmann::json get_output_set() const { return output_set; }
 
 protected:
 
@@ -57,6 +61,7 @@ protected:
     double step_size = 1e-6;
     double tolerance = 1e-11;
     double stop_gradient = 1e-12;
+    nlohmann::json output_set;
 
     static real_t errfunc(real_t sqrt_beta);
 

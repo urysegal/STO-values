@@ -54,7 +54,7 @@ double Estimator::average_error(const gsl_vector *v)
 
     double sum = 0.5 + half_sqrt_pi*sum1 - sqrt_pi*sum2;
 
-    logger()->trace("f called with N={}, sum is {}",v->size/2,sum);
+    //logger()->trace("f called with N={}, sum is {}",v->size/2,sum);
 
     return sum;
 }
@@ -95,7 +95,7 @@ double Estimator::diff_by_bi(const gsl_vector *v, size_t i)
     }
     sum *= -half_sqrt_pi;
 
-    auto err = errfunc(sqrtq(beta_i));
+    auto err = errfunc(beta_i_sqrt);
     auto exp = expq(1/(4*beta_i));
 
     sum += half_sqrt_pi * Ci * beta_i_pow_neg_3_2* exp * err ;
@@ -113,7 +113,7 @@ void Estimator::average_error_df (const gsl_vector *v, gsl_vector *df)
         gsl_vector_set(df, N+i, dF_dCi);
         auto dF_dbi = diff_by_bi(v, i);
         gsl_vector_set(df, i, dF_dbi);
-        logger()->trace("dF/dC_{} = {} , dF/db_{} = {}", i, dF_dCi, i, dF_dbi);
+       // logger()->trace("dF/dC_{} = {} , dF/db_{} = {}", i, dF_dCi, i, dF_dbi);
     }
 }
 
@@ -160,7 +160,7 @@ void Calculated_C_Estimator::average_error_df_beta_only(const gsl_vector *v, gsl
     for ( auto i = 0U ; i < N ; ++i ) {
         auto dF_dbi = diff_by_bi(v, i);
         gsl_vector_set(df, i, dF_dbi);
-        logger()->trace("dF/db_{} = {}", i, dF_dbi);
+        //logger()->trace("dF/db_{} = {}", i, dF_dbi);
     }
 }
 
@@ -180,13 +180,13 @@ void Estimator::setup_initial_guess()
                                    args.get_guess_file(), jf["N"], N-1);
                 exit(1);
             }
-#if 0
-            // with N=11, this yeild error of 1e-7
-            double beta = 0.002;
+#if 1
+            // with N=11, this yield error of 1e-7
+            double beta = 0.1 + drand48()*0.0001;
             for ( auto i = 0U ; i < N ; ++i ) {
                 gsl_vector_set(x, i, beta);
-                beta *= 2;
-                gsl_vector_set(x, i+N, 1);
+                beta *= (2+ drand48()*0.0001);
+                gsl_vector_set(x, i+N, 1+drand48()*0.1);
             }
 #else
             string best_method = jf["best_method"];
@@ -219,6 +219,7 @@ void Estimator::setup_initial_guess()
 
 void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_vector, const gsl_vector *beta_vector)
 {
+#if 0
     double test_x = 0.1;
     double real_res = exp(-test_x);
     double estimate = 0;
@@ -229,10 +230,12 @@ void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_
         result_term new_term= { gsl_vector_get(C_vector, N+i), gsl_vector_get(beta_vector, i)} ;
         this->terms.emplace_back(new_term);
     }
-    fprintf(stderr, "At X=%f, %f %f (err = %f)\n", test_x, real_res, estimate, abs(real_res-estimate));
-    nlohmann::json result;
-    result["error"] = this->estimate_error;
-    result["iterations"] = iter;
+    if ( not isnan(estimate)) {
+        fprintf(stderr, "At X=%f, %f %f (err = %f)\n", test_x, real_res, estimate, abs(real_res - estimate));
+    }
+#endif
+    output_set["error"] = this->estimate_error;
+    output_set["iterations"] = iter;
     std::vector<nlohmann::json> json_terms;
     for ( auto const &it : terms ) {
         nlohmann::json term;
@@ -240,9 +243,9 @@ void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_
         term["beta"] = it.beta;
         json_terms.emplace_back(term);
     }
-    result["terms"] = json_terms;
-    output_json[get_method_name()] = result;
-    std::cerr << result << std::endl;
+    output_set["terms"] = json_terms;
+    output_json[get_method_name()] = output_set;
+    //std::cerr << result << std::endl;
 }
 
 
@@ -254,6 +257,8 @@ void Estimator::minimize(nlohmann::json &output_json)
     iter = 0;
     int status;
     int n = N*2;
+
+    srand48(::time(nullptr));
 
     const gsl_multimin_fdfminimizer_type *T;
 
@@ -277,22 +282,28 @@ void Estimator::minimize(nlohmann::json &output_json)
         iter++;
         status = gsl_multimin_fdfminimizer_iterate (s);
 
-        this->estimate_error = s->f;
-
         if (status)
             break;
 
         status = gsl_multimin_test_gradient (s->gradient, stop_gradient);
 
-        if (status == GSL_SUCCESS)
-            fprintf (stderr,"Minimum found at:\n");
 
-        if ( iter % 100 == 1 ) {
-            fprintf(stderr, "%u %5lu f=%10.15f\n", N, iter,
-                    s->f);
+        //if (status == GSL_SUCCESS)
+          //  fprintf (stderr,"Minimum found at:\n");
+
+       // if ( iter % 100 == 1 ) {
+         //   fprintf(stderr, "%u %5lu f=%10.15f\n", N, iter,
+          //          s->f);
+      //  }
+
+        if ( isnan(s->f)) {
+            this->estimate_error = 9999999999;
+        } else {
+            this->estimate_error = s->f;
         }
+
     }
-    while (status == GSL_CONTINUE && iter < args.get_max_iterations());
+    while (not isnan(s->f) and  status == GSL_CONTINUE && iter < args.get_max_iterations());
     output_results(output_json, s->x, s->x);
 
 
