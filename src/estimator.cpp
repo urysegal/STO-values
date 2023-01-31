@@ -177,7 +177,7 @@ void Estimator::setup_initial_guess()
             double beta = 0.1 + drand48() * 0.0001;
             for (auto i = 0U; i < N; ++i) {
                 gsl_vector_set(x, i, beta);
-                beta *= (2 + drand48() * 0.0001);
+                beta *= (2 - drand48() * 0.9);
                 gsl_vector_set(x, i + N, 1 + drand48() * 0.1);
             }
         } else {
@@ -267,7 +267,7 @@ void Estimator::minimize(nlohmann::json &output_json)
 
     setup_initial_guess();
 
-    T = gsl_multimin_fdfminimizer_conjugate_fr;
+    T = gsl_multimin_fdfminimizer_conjugate_pr;
     s = gsl_multimin_fdfminimizer_alloc (T, n);
 
     gsl_multimin_fdfminimizer_set (s, &my_func, x, step_size, tolerance);
