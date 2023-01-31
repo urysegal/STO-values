@@ -177,7 +177,7 @@ void Estimator::setup_initial_guess()
             double beta = 0.1 + drand48() * 0.0001;
             for (auto i = 0U; i < N; ++i) {
                 gsl_vector_set(x, i, beta);
-                beta *= (2 - drand48() * 0.9);
+                beta *= (2 - drand48() * 0.99);
                 gsl_vector_set(x, i + N, 1 + drand48() * 0.1);
             }
         } else {
@@ -230,6 +230,7 @@ void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_
         this->terms.emplace_back(new_term);
     }
 
+    std::vector<double> matlab_C, matlab_beta;
     output_set["error"] = this->estimate_error;
     output_set["iterations"] = iter;
     std::vector<nlohmann::json> json_terms;
@@ -237,9 +238,14 @@ void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_
         nlohmann::json term;
         term["C"] = it.C;
         term["beta"] = it.beta;
+        matlab_C.emplace_back(it.C);
+        matlab_beta.emplace_back(it.beta);
         json_terms.emplace_back(term);
     }
     output_set["terms"] = json_terms;
+    output_set["matlab_C"] = matlab_C;
+    output_set["matlab_beta"] = matlab_beta;
+
     //std::cerr << result << std::endl;
 }
 
