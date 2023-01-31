@@ -172,68 +172,64 @@ void Estimator::setup_initial_guess()
         gsl_vector_set(x, 0, 0.025);
         gsl_vector_set(x, 1, 1);
     } else {
-        try {
-            std::ifstream ifs(args.get_guess_file());
-            nlohmann::json jf = nlohmann::json::parse(ifs);
-            if ( jf["N"] >= N-1 ) {
-                logger()->critical("Guess file {} does not contain enough terms: has {}. {} needed.",
-                                   args.get_guess_file(), jf["N"], N-1);
+        if (args.get_max_guesses()) {
+            // with N=11, this yield error of 1e-7
+            double beta = 0.1 + drand48() * 0.0001;
+            for (auto i = 0U; i < N; ++i) {
+                gsl_vector_set(x, i, beta);
+                beta *= (2 + drand48() * 0.0001);
+                gsl_vector_set(x, i + N, 1 + drand48() * 0.1);
+            }
+        } else {
+            nlohmann::json terms_output;
+
+            try {
+                std::ifstream ifs(args.get_guess_file());
+                nlohmann::json jf = nlohmann::json::parse(ifs);
+                if (jf["N"] >= N - 1) {
+                    logger()->critical("Guess file {} does not contain enough terms: has {}. {} needed.",
+                                       args.get_guess_file(), jf["N"], N - 1);
+                    exit(1);
+                }
+
+                string best_method = jf["best_method"];
+                nlohmann::json method_output = jf[best_method];
+                terms_output = method_output["terms"];
+            } catch (std::exception &e) {
+                logger()->critical("Reading Guess: FATAL: {}", std::string(e.what()));
                 exit(1);
             }
-#if 1
-            // with N=11, this yield error of 1e-7
-            double beta = 0.1 + drand48()*0.0001;
-            for ( auto i = 0U ; i < N ; ++i ) {
-                gsl_vector_set(x, i, beta);
-                beta *= (2+ drand48()*0.0001);
-                gsl_vector_set(x, i+N, 1+drand48()*0.1);
-            }
-#else
-            string best_method = jf["best_method"];
-            nlohmann::json method_output = jf[best_method];
-            nlohmann::json terms_output = method_output["terms"];
+
             unsigned int i = 0;
             double last_beta = 0;
             double last_C = 0;
-            for ( auto &it: terms_output ) {
-                if ( i == N-1) {
+            for (auto &it: terms_output) {
+                if (i == N - 1) {
                     break;
                 }
                 last_beta = double(it["beta"]);
                 gsl_vector_set(x, i, last_beta);
                 last_C = it["C"];
-                gsl_vector_set(x, i+N, last_C);
+                gsl_vector_set(x, i + N, last_C);
                 ++i;
             }
-            gsl_vector_set(x, N-1, last_beta*1.1);
+            gsl_vector_set(x, N - 1, last_beta * 1.1);
             //this->update_C(x);
-            gsl_vector_set(x, (2*N)-1, last_C/double (N));
-#endif
-        } catch (std::exception &e) {
-            logger()->critical("Reading Guess: FATAL: {}", std::string(e.what()));
-            exit(1);
+            gsl_vector_set(x, (2 * N) - 1, last_C / double(N));
         }
-
     }
 }
 
 void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_vector, const gsl_vector *beta_vector)
 {
-#if 0
-    double test_x = 0.1;
-    double real_res = exp(-test_x);
-    double estimate = 0;
+
     for ( auto i = 0U ; i < N ; i++ ) {
         auto C = gsl_vector_get(C_vector, N+i) ;
         auto beta = gsl_vector_get(beta_vector, i);
-        estimate += C* exp(-beta*(test_x*test_x));
-        result_term new_term= { gsl_vector_get(C_vector, N+i), gsl_vector_get(beta_vector, i)} ;
+        result_term new_term= { C, beta} ;
         this->terms.emplace_back(new_term);
     }
-    if ( not isnan(estimate)) {
-        fprintf(stderr, "At X=%f, %f %f (err = %f)\n", test_x, real_res, estimate, abs(real_res - estimate));
-    }
-#endif
+
     output_set["error"] = this->estimate_error;
     output_set["iterations"] = iter;
     std::vector<nlohmann::json> json_terms;
@@ -244,7 +240,6 @@ void Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_
         json_terms.emplace_back(term);
     }
     output_set["terms"] = json_terms;
-    output_json[get_method_name()] = output_set;
     //std::cerr << result << std::endl;
 }
 

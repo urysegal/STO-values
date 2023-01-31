@@ -28,7 +28,7 @@ private:
     unsigned int number_of_terms = 128;
     unsigned int max_iterations = 1024;
     std::string guess_file;
-    unsigned int max_guesses = 1024;
+    unsigned int max_guesses = 0;
 };
 
 struct result_term {
