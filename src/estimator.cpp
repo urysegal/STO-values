@@ -164,7 +164,6 @@ void Guess_Estimator::setup_initial_guess()
         gsl_vector_set(x, 1, 1);
     } else {
         assert (args.get_max_guesses()) ;
-        // with N=11, this yield error of 1e-7
         double beta = 0.1 + drand48() * 0.0001;
         for (auto i = 0U; i < N; ++i) {
             gsl_vector_set(x, i, beta);
@@ -200,7 +199,6 @@ void Guess_Estimator::output_results(nlohmann::json &output_json, const gsl_vect
     output_set["matlab_C"] = matlab_C;
     output_set["matlab_beta"] = matlab_beta;
 
-    //std::cerr << result << std::endl;
 }
 
 
@@ -227,14 +225,20 @@ void Guess_Estimator::minimize(nlohmann::json &output_json)
 
     setup_initial_guess();
 
+    auto last_good_result = gsl_vector_alloc (N*2);
+
     T = gsl_multimin_fdfminimizer_conjugate_pr;
     s = gsl_multimin_fdfminimizer_alloc (T, n);
 
     gsl_multimin_fdfminimizer_set (s, &my_func, x, step_size, tolerance);
 
+
+    this->estimate_error = 1e10;
     do
     {
         iter++;
+        gsl_vector_memcpy(last_good_result, x);
+
         status = gsl_multimin_fdfminimizer_iterate (s);
 
         if (status)
@@ -243,24 +247,19 @@ void Guess_Estimator::minimize(nlohmann::json &output_json)
         status = gsl_multimin_test_gradient (s->gradient, stop_gradient);
 
 
-        //if (status == GSL_SUCCESS)
-          //  fprintf (stderr,"Minimum found at:\n");
-
-       // if ( iter % 100 == 1 ) {
-         //   fprintf(stderr, "%u %5lu f=%10.15f\n", N, iter,
-          //          s->f);
-      //  }
-
         if ( isnan(s->f)) {
-            this->estimate_error = 9999999999;
+            break;
         } else {
             this->estimate_error = s->f;
         }
 
     }
-    while (not isnan(s->f) and  status == GSL_CONTINUE && iter < args.get_max_iterations());
+    while ( status == GSL_CONTINUE && iter < args.get_max_iterations());
+    if (isnan(s->f)) {
+        gsl_vector_memcpy(s->x, last_good_result);
+    }
     output_results(output_json, s->x, s->x);
-
+    gsl_vector_free(last_good_result);
 
 }
 

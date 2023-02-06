@@ -102,7 +102,7 @@ estimate(nlohmann::json &input_set, nlohmann::json &output_set)
     Arguments args(input_set);
 
     if ( args.get_max_guesses() ) {
-        double best_so_far = 99999999;
+        double best_so_far = 1e20;
         nlohmann::json best_json;
         for (unsigned int i = 0U; i < args.get_max_guesses(); ++i) {
             Guess_Estimator estimator(args);
@@ -110,7 +110,6 @@ estimate(nlohmann::json &input_set, nlohmann::json &output_set)
 
             if (estimator.get_estimate_error() < best_so_far) {
                 best_so_far = estimator.get_estimate_error();
-                cout << "Best :" << estimator.get_output_set() << endl;
                 best_json = estimator.get_output_set();
                 cout << "Best :" << best_json << endl;
                 output_set["best"]   = best_json;

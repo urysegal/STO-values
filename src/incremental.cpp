@@ -159,7 +159,7 @@ void Incremental_Estimator::minimize(nlohmann::json &output_json)
     auto new_params = gsl_vector_alloc(3);
     gsl_vector_set(new_params,0, GET_beta(x, N-2)*1.01);
     gsl_vector_set(new_params,1,1/N);
-    gsl_vector_set(new_params,2,0.8);
+    gsl_vector_set(new_params,2,0.8); // Guess coefficient for previous result
 
 
     gsl_multimin_fdfminimizer_set (s, &my_func, new_params, step_size, tolerance);
