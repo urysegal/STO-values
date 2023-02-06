@@ -36,15 +36,15 @@ struct result_term {
     double beta;
 };
 
-class Estimator {
+class Guess_Estimator {
 public:
 
-    Estimator(const Arguments &_args) : args(_args) , N(args.get_number_of_terms()){}
-    virtual ~Estimator();
+    Guess_Estimator(const Arguments &_args) : args(_args) , N(args.get_number_of_terms()){}
+    virtual ~Guess_Estimator();
     virtual void minimize(nlohmann::json &output_json);
 
-    double average_error (const gsl_vector *v);
-    void average_error_df (const gsl_vector *v, gsl_vector *df);
+    virtual double average_error (const gsl_vector *v);
+    virtual void average_error_df (const gsl_vector *v, gsl_vector *df);
     virtual std::string get_method_name() const { return "C_conjugate_gradients"; }
     auto get_estimate_error() const { return estimate_error; }
     const nlohmann::json get_output_set() const { return output_set; }
@@ -58,36 +58,41 @@ protected:
     size_t iter = 0;
     std::vector<result_term> terms;
     gsl_multimin_fdfminimizer *s = nullptr;
-    double step_size = 1e-6;
+    double step_size = 1e-3;
     double tolerance = 1e-11;
     double stop_gradient = 1e-12;
     nlohmann::json output_set;
 
     static real_t errfunc(real_t sqrt_beta);
 
-
     double diff_by_Ci(const gsl_vector *v, size_t i);
     double diff_by_bi(const gsl_vector *v, size_t i);
 
     virtual double GET_C(const gsl_vector *v, unsigned int i) const { return gsl_vector_get(v, (N + i)); }
+    virtual double GET_beta(const gsl_vector *v, unsigned int i) const { return gsl_vector_get(v, (i)); }
 
-    void update_C(gsl_vector *);
-    void setup_initial_guess();
+    virtual void setup_initial_guess();
     void output_results(nlohmann::json &output_json, const gsl_vector *C_vector, const gsl_vector *beta_vector);
-
 
 };
 
-class Calculated_C_Estimator : public Estimator
-{
+class Incremental_Estimator : public Guess_Estimator {
 public:
-    Calculated_C_Estimator(const Arguments &_args) : Estimator(_args) {}
-    void average_error_df_beta_only(const gsl_vector *v, gsl_vector *df);
-    void minimize(nlohmann::json &output_json) override;
-    std::string get_method_name() const override { return "C_implied"; }
+    Incremental_Estimator(const Arguments &_args) : Guess_Estimator(_args) {}
+    virtual ~Incremental_Estimator() ;
+
+    virtual void minimize(nlohmann::json &output_json) override;
+
+    double average_error (const gsl_vector *v) override;
+    void average_error_df (const gsl_vector *v, gsl_vector *df) override;
+
 
 protected:
-    double GET_C(const gsl_vector *v, unsigned int i) const override { return gsl_vector_get(x, (N + i)); }
+    gsl_vector *adjusted_x = nullptr;
+    void calculate_adjusted_x(const gsl_vector *v);
+
+
+    void setup_initial_guess() override;
 
 };
 

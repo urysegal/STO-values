@@ -105,7 +105,7 @@ estimate(nlohmann::json &input_set, nlohmann::json &output_set)
         double best_so_far = 99999999;
         nlohmann::json best_json;
         for (unsigned int i = 0U; i < args.get_max_guesses(); ++i) {
-            Estimator estimator(args);
+            Guess_Estimator estimator(args);
             estimator.minimize(output_set);
 
             if (estimator.get_estimate_error() < best_so_far) {
@@ -118,7 +118,7 @@ estimate(nlohmann::json &input_set, nlohmann::json &output_set)
             output_set["best_method"] = "best";
         }
     } else {
-        Estimator estimator(args);
+        Incremental_Estimator estimator(args);
         estimator.minimize(output_set);
         output_set[estimator.get_method_name()] = estimator.get_output_set();
         output_set["best_method"] = estimator.get_method_name();
