@@ -238,7 +238,7 @@ void Guess_Estimator::minimize(nlohmann::json &output_json)
 
     auto last_good_result = gsl_vector_alloc (N*2);
 
-    T = gsl_multimin_fdfminimizer_conjugate_pr;
+    T = gsl_multimin_fdfminimizer_vector_bfgs2;
     s = gsl_multimin_fdfminimizer_alloc (T, n);
 
     gsl_multimin_fdfminimizer_set (s, &my_func, x, step_size, tolerance);

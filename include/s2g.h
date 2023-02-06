@@ -64,8 +64,8 @@ protected:
     size_t iter = 0;
     std::vector<result_term> terms;
     gsl_multimin_fdfminimizer *s = nullptr;
-    double step_size = 1e-3;
-    double tolerance = 1e-11;
+    double step_size = 1e-1;
+    double tolerance = 1e-2;
     double stop_gradient = 1e-12;
     nlohmann::json output_set;
 
