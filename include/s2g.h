@@ -23,12 +23,18 @@ public:
     auto get_max_iterations() const { return max_iterations; }
     auto get_guess_file() const { return guess_file; }
     auto get_max_guesses() const { return max_guesses; }
+    auto get_initial_beta() const { return  initial_beta; }
+    auto get_initial_C() const { return  initial_C; }
+    auto get_beta_factor() const { return beta_factor; }
 
 private:
     unsigned int number_of_terms = 128;
     unsigned int max_iterations = 1024;
     std::string guess_file;
     unsigned int max_guesses = 0;
+    double initial_beta = 0.1;
+    double initial_C = 1;
+    double beta_factor = 1.1;
 };
 
 struct result_term {

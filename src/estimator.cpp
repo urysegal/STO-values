@@ -164,11 +164,22 @@ void Guess_Estimator::setup_initial_guess()
         gsl_vector_set(x, 1, 1);
     } else {
         assert (args.get_max_guesses()) ;
-        double beta = 0.1 + drand48() * 0.0001;
+        double beta = args.get_initial_beta();
+        if ( args.get_max_guesses() > 1 ) {
+            beta += drand48() * 0.0001;
+        }
         for (auto i = 0U; i < N; ++i) {
             gsl_vector_set(x, i, beta);
-            beta *= (2 - drand48() * 0.99);
-            gsl_vector_set(x, i + N, 1 + drand48() * 0.1);
+            if ( args.get_max_guesses() > 1 ) {
+                beta *= (2 - drand48() * 0.99);
+            } else {
+                beta *= args.get_beta_factor();
+            }
+            if ( args.get_max_guesses() > 1 ) {
+                gsl_vector_set(x, i + N, args.get_initial_C() + drand48() * 0.1);
+            } else {
+                gsl_vector_set(x, i + N, args.get_initial_C());
+            }
         }
     }
 }

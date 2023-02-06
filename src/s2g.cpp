@@ -19,6 +19,7 @@ static nlohmann::json parse_args(int argc, const char **argv)
 {
     nlohmann::json input_set;
     unsigned int number_of_terms, max_iterations, max_guesses;
+    double beta_factor, initial_C, initial_beta;
     string guess_file="-";
 
     po::options_description desc("s2g parameters:");
@@ -26,7 +27,11 @@ static nlohmann::json parse_args(int argc, const char **argv)
             ("number_of_terms,N", po::value<unsigned int>(&number_of_terms)->required(), "number of terms in the approximate sum")
             ("max_iterations,i", po::value<unsigned int>(&max_iterations)->default_value(204800), "Maximum number of iterations ")
             ("max_guesses,m", po::value<unsigned int>(&max_guesses)->default_value(0), "Maximum number of guesses")
-            ("guess,g", po::value<string>(&guess_file), "If number_of_terms > 1, Initial Guess file from a previous run with N=N-1");
+            ("guess,g", po::value<string>(&guess_file), "If number_of_terms > 1, Initial Guess file from a previous run with N=N-1")
+            ("beta_factor,f", po::value<double>(&beta_factor)->default_value(1.1), "beta growth factor")
+            ("initial_C,C", po::value<double>(&initial_C)->default_value(1), "initial C")
+            ("initial_beta,b", po::value<double>(&initial_beta)->default_value(0.1), "initial beta");
+
     try {
         po::variables_map vm;
         po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -34,6 +39,10 @@ static nlohmann::json parse_args(int argc, const char **argv)
         input_set["number_of_terms"] = number_of_terms;
         input_set["max_iterations"] = max_iterations;
         input_set["max_guesses"] = max_guesses;
+        input_set["initial_C"] = initial_C;
+        input_set["initial_beta"] = initial_beta;
+        input_set["beta_factor"] = beta_factor;
+
         if ( not max_guesses and ( number_of_terms > 1 and vm.count("guess") < 1 ) ) {
             logger()->critical("FATAL: You must specify a guess file when number_of_terms > 1");
             exit(1);
