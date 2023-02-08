@@ -11,12 +11,12 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 
 #option(COVERAGE "Coverage" ON)
 
-#set(COMPILE_FLAGS -Wall -Werror -fsanitize=address -fsanitize=leak -fno-omit-frame-pointer -pthread)
-#set(LINK_FLAGS -fsanitize=address -lm -lquadmath)
+set(COMPILE_FLAGS -Wall -Werror -fsanitize=address -fsanitize=leak -fno-omit-frame-pointer -pthread)
+set(LINK_FLAGS -fsanitize=address -lm -lquadmath)
 
 
-set(COMPILE_FLAGS -Wall -Werror -fno-omit-frame-pointer -pthread)
-set(LINK_FLAGS  -lm -lquadmath)
+#set(COMPILE_FLAGS -Wall -Werror -fno-omit-frame-pointer -pthread)
+#set(LINK_FLAGS  -lm -lquadmath)
 
 
 find_package(Boost 1.71 REQUIRED program_options)
@@ -31,7 +31,9 @@ include_directories(${stovalues_SOURCE_DIR} ${stovalues_SOURCE_DIR}/include)
 find_package(spdlog REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-add_executable(s2g src/s2g.cpp src/environ.cpp src/logger.cpp src/parameters.cpp src/estimator.cpp src/incremental.cpp)
+add_executable(s2g src/s2g.cpp src/environ.cpp src/logger.cpp src/parameters.cpp src/estimator.cpp
+#        src/incremental.cpp
+        )
 add_dependencies(s2g nlohmann_json)
 target_link_libraries(s2g PUBLIC spdlog::spdlog)
 target_link_libraries (s2g PUBLIC Eigen3::Eigen)

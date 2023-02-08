@@ -29,23 +29,25 @@ real_t Guess_Estimator::errfunc(real_t sqrt_beta)
 }
 
 
-double Guess_Estimator::average_error(const gsl_vector *v)
+double Guess_Estimator::average_error(const gsl_vector *kC)
 {
     real_t sum1 = 0;
     real_t sum2 = 0;
 
+    convert_k_to_beta(kC, beta_and_C);
+
     for ( auto i = 0U ; i < N ; ++i ) {
 
-        real_t Ci = GET_C(v, i);
-        real_t beta_i = GET_beta(v, i);
+        real_t Ci = GET_C(beta_and_C, i);
+        real_t beta_i = GET_beta(beta_and_C, i);
 
         real_t sqrt_beta_i = sqrtq(beta_i);
         sum2 += (Ci/sqrt_beta_i)*expq(1.0/(4.0*beta_i))*errfunc(sqrt_beta_i);
 
         for ( auto j = 0U ; j < N ; ++j ) {
 
-            real_t Cj = GET_C(v, j);
-            auto beta_j = GET_beta(v, j);
+            real_t Cj = GET_C(beta_and_C, j);
+            auto beta_j = GET_beta(beta_and_C, j);
 
             sum1 += Ci * Cj / (sqrtq(beta_i + beta_j));
         }
@@ -58,15 +60,16 @@ double Guess_Estimator::average_error(const gsl_vector *v)
     return sum;
 }
 
-double Guess_Estimator::diff_by_Ci(const gsl_vector *v, size_t i)
+double Guess_Estimator::diff_by_Ci(const gsl_vector *kC, size_t i)
 {
+    convert_k_to_beta(kC, beta_and_C);
 
-    real_t beta_i = GET_beta(v, i);
+    real_t beta_i = GET_beta(beta_and_C, i);
     real_t sum = 0;
     for (auto j = 0U; j < N; ++j) {
 
-        real_t Cj = GET_C(v, j);
-        real_t beta_j = GET_beta(v, j);
+        real_t Cj = GET_C(beta_and_C, j);
+        real_t beta_j = GET_beta(beta_and_C, j);
         sum += Cj / (sqrtq(beta_i + beta_j));
     }
     sum *= sqrt_pi;
@@ -78,18 +81,20 @@ double Guess_Estimator::diff_by_Ci(const gsl_vector *v, size_t i)
     return sum;
 }
 
-double Guess_Estimator::diff_by_bi(const gsl_vector *v, size_t i)
+double Guess_Estimator::diff_by_bi(const gsl_vector *kC, size_t i)
 {
-    real_t beta_i = GET_beta(v, i);
+    convert_k_to_beta(kC, beta_and_C);
+
+    real_t beta_i = GET_beta(beta_and_C, i);
     real_t beta_i_sqrt = sqrtq(beta_i);
     real_t beta_i_pow_neg_3_2 = 1.0/powq(beta_i_sqrt, 3.0);
     real_t beta_i_pow_neg_5_2 = 1.0/powq(beta_i_sqrt, 5.0);
-    real_t Ci = GET_C(v, i);
+    real_t Ci = GET_C(beta_and_C, i);
 
     real_t sum = 0;
     for (auto j = 0U; j < N; ++j) {
-        real_t Cj = GET_C(v, j);
-        real_t beta_j = GET_beta(v, j);
+        real_t Cj = GET_C(beta_and_C, j);
+        real_t beta_j = GET_beta(beta_and_C, j);
         sum += Ci*Cj*1.0/sqrtq(powq(beta_i+beta_j,3.0)) ;
     }
     sum *= -half_sqrt_pi;
@@ -101,7 +106,9 @@ double Guess_Estimator::diff_by_bi(const gsl_vector *v, size_t i)
     sum += quarter_sqrt_pi * Ci * beta_i_pow_neg_5_2 * exp * err ;
     sum -= Ci/(2*beta_i*beta_i);
 
-    return sum;
+    auto ki = GET_beta(kC,i);
+
+    return sum * 2 * ki;
 }
 
 
@@ -116,6 +123,26 @@ void Guess_Estimator::average_error_df (const gsl_vector *v, gsl_vector *df)
     }
 }
 
+void Guess_Estimator::convert_beta_to_k(const gsl_vector * betas, gsl_vector *ks)
+{
+    for (auto i = 0U; i < N; ++i) {
+        double this_beta = GET_beta(betas, i);
+        double prev_beta = (i == 0) ? 0 : GET_beta(betas, i-1);
+        double k = sqrt(this_beta-prev_beta);
+        gsl_vector_set(ks, i, k);
+        gsl_vector_set(ks, i + N, GET_C(betas,i));
+    }
+}
+
+void Guess_Estimator::convert_k_to_beta(const gsl_vector * ks, gsl_vector *betas)
+{
+    double betas_sum = 0 ;
+    for (auto i = 0U; i < N; ++i) {
+        betas_sum += pow(GET_beta(ks, i), 2);
+        gsl_vector_set(betas, i, betas_sum);
+        gsl_vector_set(betas, i + N, GET_C(ks,i));
+    }
+}
 
 
 /* Compute both f and df together. */
@@ -147,8 +174,11 @@ my_df (const gsl_vector *v, void *params, gsl_vector *df)
 
 Guess_Estimator::~Guess_Estimator()
 {
-    gsl_vector_free (x);
-    x=nullptr;
+    gsl_vector_free (beta_and_C);
+    beta_and_C=nullptr;
+    gsl_vector_free (k_and_C);
+    k_and_C=nullptr;
+
     gsl_multimin_fdfminimizer_free (s);
     s = nullptr;
 }
@@ -158,30 +188,33 @@ Guess_Estimator::~Guess_Estimator()
 
 void Guess_Estimator::setup_initial_guess()
 {
-    x = gsl_vector_alloc (N*2);
+    this->k_and_C = gsl_vector_alloc (N*2);
+    this->beta_and_C = gsl_vector_alloc (N*2);
+
     if ( N ==1 ) {
-        gsl_vector_set(x, 0, 0.025);
-        gsl_vector_set(x, 1, 1);
+        gsl_vector_set(k_and_C, 0, 0.025);
+        gsl_vector_set(k_and_C, 1, 1);
     } else {
+        auto beta_factor = args.get_beta_factor();
         assert (args.get_max_guesses()) ;
-        double beta = args.get_initial_beta();
+        double k = args.get_initial_beta();
         if ( args.get_max_guesses() > 1 ) {
-            beta += drand48() * 0.0001;
+            k += drand48() * 0.0001;
+            beta_factor += drand48() * 0.01;
         }
         for (auto i = 0U; i < N; ++i) {
-            gsl_vector_set(x, i, beta);
+            gsl_vector_set(k_and_C, i, k);
+            k *= beta_factor;
+            beta_factor = 1+ ( (beta_factor-1) * beta_decay );
+            fprintf(stderr,"beta factor %g\n", beta_factor);
             if ( args.get_max_guesses() > 1 ) {
-                beta *= (2 - drand48() * 0.99);
+                gsl_vector_set(k_and_C, i + N, args.get_initial_C() + drand48() * 0.0001);
             } else {
-                beta *= args.get_beta_factor();
-            }
-            if ( args.get_max_guesses() > 1 ) {
-                gsl_vector_set(x, i + N, args.get_initial_C() + drand48() * 0.1);
-            } else {
-                gsl_vector_set(x, i + N, args.get_initial_C());
+                gsl_vector_set(k_and_C, i + N, args.get_initial_C());
             }
         }
     }
+    convert_k_to_beta(); // not really needed, but nice for printing how initial betas look like
 }
 
 void Guess_Estimator::output_results(nlohmann::json &output_json, const gsl_vector *C_vector, const gsl_vector *beta_vector)
@@ -214,8 +247,6 @@ void Guess_Estimator::output_results(nlohmann::json &output_json, const gsl_vect
 
 
 
-
-
 void Guess_Estimator::minimize(nlohmann::json &output_json)
 {
     iter = 0;
@@ -239,16 +270,18 @@ void Guess_Estimator::minimize(nlohmann::json &output_json)
     auto last_good_result = gsl_vector_alloc (N*2);
 
     T = gsl_multimin_fdfminimizer_vector_bfgs2;
+    //T = gsl_multimin_fdfminimizer_conjugate_pr;
+
     s = gsl_multimin_fdfminimizer_alloc (T, n);
 
-    gsl_multimin_fdfminimizer_set (s, &my_func, x, step_size, tolerance);
+    gsl_multimin_fdfminimizer_set (s, &my_func, k_and_C, step_size, tolerance);
 
 
     this->estimate_error = 1e10;
     do
     {
         iter++;
-        gsl_vector_memcpy(last_good_result, x);
+        gsl_vector_memcpy(last_good_result, s->x);
 
         status = gsl_multimin_fdfminimizer_iterate (s);
 
@@ -269,7 +302,8 @@ void Guess_Estimator::minimize(nlohmann::json &output_json)
     if (isnan(s->f)) {
         gsl_vector_memcpy(s->x, last_good_result);
     }
-    output_results(output_json, s->x, s->x);
+    convert_k_to_beta(s->x, beta_and_C);
+    output_results(output_json, beta_and_C, beta_and_C);
     gsl_vector_free(last_good_result);
 
 }

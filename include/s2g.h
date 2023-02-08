@@ -59,14 +59,16 @@ protected:
 
     Arguments args;
     const unsigned int N=0;
-    gsl_vector *x = nullptr;
+    gsl_vector *k_and_C = nullptr;
+    gsl_vector *beta_and_C = nullptr;
     double estimate_error = 0;
     size_t iter = 0;
     std::vector<result_term> terms;
     gsl_multimin_fdfminimizer *s = nullptr;
-    double step_size = 1e-1;
-    double tolerance = 1e-2;
+    double step_size = 1e-2;
+    double tolerance = 1e-1;
     double stop_gradient = 1e-12;
+    double beta_decay = 1.0;
     nlohmann::json output_set;
 
     static real_t errfunc(real_t sqrt_beta);
@@ -80,8 +82,15 @@ protected:
     virtual void setup_initial_guess();
     void output_results(nlohmann::json &output_json, const gsl_vector *C_vector, const gsl_vector *beta_vector);
 
+    void convert_beta_to_k(const gsl_vector * betas, gsl_vector *ks);
+    void convert_beta_to_k() { convert_beta_to_k(beta_and_C, k_and_C); }
+
+    void convert_k_to_beta(const gsl_vector * ks, gsl_vector *betas);
+    void convert_k_to_beta() { convert_k_to_beta( k_and_C, beta_and_C); }
+
 };
 
+#if 0
 class Incremental_Estimator : public Guess_Estimator {
 public:
     Incremental_Estimator(const Arguments &_args) : Guess_Estimator(_args) {}
@@ -101,5 +110,5 @@ protected:
     void setup_initial_guess() override;
 
 };
-
+#endif
 }

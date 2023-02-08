@@ -126,10 +126,12 @@ estimate(nlohmann::json &input_set, nlohmann::json &output_set)
             output_set["best_method"] = "best";
         }
     } else {
-        Incremental_Estimator estimator(args);
-        estimator.minimize(output_set);
-        output_set[estimator.get_method_name()] = estimator.get_output_set();
-        output_set["best_method"] = estimator.get_method_name();
+        cerr << "Increamental Estimator not implemented " << endl;
+        assert(false);
+        //Incremental_Estimator estimator(args);
+        //estimator.minimize(output_set);
+        //output_set[estimator.get_method_name()] = estimator.get_output_set();
+        //output_set["best_method"] = estimator.get_method_name();
     }
 
     auto end_time = std::chrono::system_clock::now();
