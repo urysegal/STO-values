@@ -59,7 +59,7 @@ protected:
 
     Arguments args;
     const unsigned int N=0;
-    gsl_vector *k_and_C = nullptr;
+    gsl_vector *ks = nullptr;
     gsl_vector *beta_and_C = nullptr;
     double estimate_error = 0;
     size_t iter = 0;
@@ -83,11 +83,12 @@ protected:
     void output_results(nlohmann::json &output_json, const gsl_vector *C_vector, const gsl_vector *beta_vector);
 
     void convert_beta_to_k(const gsl_vector * betas, gsl_vector *ks);
-    void convert_beta_to_k() { convert_beta_to_k(beta_and_C, k_and_C); }
+    void convert_beta_to_k() { convert_beta_to_k(beta_and_C, ks); }
 
     void convert_k_to_beta(const gsl_vector * ks, gsl_vector *betas);
-    void convert_k_to_beta() { convert_k_to_beta( k_and_C, beta_and_C); }
+    void convert_k_to_beta() { convert_k_to_beta( ks, beta_and_C); }
 
+    void update_C(const gsl_vector *ks);
 };
 
 #if 0

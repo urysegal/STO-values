@@ -115,22 +115,21 @@ double Guess_Estimator::diff_by_bi(const gsl_vector *kC, size_t i)
 void Guess_Estimator::average_error_df (const gsl_vector *v, gsl_vector *df)
 {
     for ( auto i = 0U ; i < N ; ++i ) {
-        auto dF_dCi = diff_by_Ci(v, i);
-        gsl_vector_set(df, N+i, dF_dCi);
+       // auto dF_dCi = diff_by_Ci(v, i);
+       // gsl_vector_set(df, N+i, dF_dCi);
         auto dF_dbi = diff_by_bi(v, i);
         gsl_vector_set(df, i, dF_dbi);
        // logger()->trace("dF/dC_{} = {} , dF/db_{} = {}", i, dF_dCi, i, dF_dbi);
     }
 }
 
-void Guess_Estimator::convert_beta_to_k(const gsl_vector * betas, gsl_vector *ks)
+void Guess_Estimator::convert_beta_to_k(const gsl_vector * betas, gsl_vector *k_vec)
 {
     for (auto i = 0U; i < N; ++i) {
         double this_beta = GET_beta(betas, i);
         double prev_beta = (i == 0) ? 0 : GET_beta(betas, i-1);
         double k = sqrt(this_beta-prev_beta);
-        gsl_vector_set(ks, i, k);
-        gsl_vector_set(ks, i + N, GET_C(betas,i));
+        gsl_vector_set(k_vec, i, k);
     }
 }
 
@@ -140,7 +139,6 @@ void Guess_Estimator::convert_k_to_beta(const gsl_vector * ks, gsl_vector *betas
     for (auto i = 0U; i < N; ++i) {
         betas_sum += pow(GET_beta(ks, i), 2);
         gsl_vector_set(betas, i, betas_sum);
-        gsl_vector_set(betas, i + N, GET_C(ks,i));
     }
 }
 
@@ -176,8 +174,8 @@ Guess_Estimator::~Guess_Estimator()
 {
     gsl_vector_free (beta_and_C);
     beta_and_C=nullptr;
-    gsl_vector_free (k_and_C);
-    k_and_C=nullptr;
+    gsl_vector_free (ks);
+    ks=nullptr;
 
     gsl_multimin_fdfminimizer_free (s);
     s = nullptr;
@@ -188,12 +186,12 @@ Guess_Estimator::~Guess_Estimator()
 
 void Guess_Estimator::setup_initial_guess()
 {
-    this->k_and_C = gsl_vector_alloc (N*2);
+    this->ks = gsl_vector_alloc (N);
     this->beta_and_C = gsl_vector_alloc (N*2);
 
     if ( N ==1 ) {
-        gsl_vector_set(k_and_C, 0, 0.025);
-        gsl_vector_set(k_and_C, 1, 1);
+        gsl_vector_set(ks, 0, 0.025);
+        gsl_vector_set(beta_and_C, 1, 1);
     } else {
         auto beta_factor = args.get_beta_factor();
         assert (args.get_max_guesses()) ;
@@ -203,14 +201,13 @@ void Guess_Estimator::setup_initial_guess()
             beta_factor += drand48() * 0.01;
         }
         for (auto i = 0U; i < N; ++i) {
-            gsl_vector_set(k_and_C, i, k);
+            gsl_vector_set(ks, i, k);
             k *= beta_factor;
             beta_factor = 1+ ( (beta_factor-1) * beta_decay );
-            fprintf(stderr,"beta factor %g\n", beta_factor);
             if ( args.get_max_guesses() > 1 ) {
-                gsl_vector_set(k_and_C, i + N, args.get_initial_C() + drand48() * 0.0001);
+                gsl_vector_set(beta_and_C, i + N, args.get_initial_C() + drand48() * 0.0001);
             } else {
-                gsl_vector_set(k_and_C, i + N, args.get_initial_C());
+                gsl_vector_set(beta_and_C, i + N, args.get_initial_C());
             }
         }
     }
@@ -251,7 +248,6 @@ void Guess_Estimator::minimize(nlohmann::json &output_json)
 {
     iter = 0;
     int status;
-    int n = N*2;
 
     srand48(::time(nullptr));
 
@@ -259,7 +255,7 @@ void Guess_Estimator::minimize(nlohmann::json &output_json)
 
     gsl_multimin_function_fdf my_func;
 
-    my_func.n = n;
+    my_func.n = N;
     my_func.f = my_f;
     my_func.df = my_df;
     my_func.fdf = my_fdf;
@@ -267,19 +263,20 @@ void Guess_Estimator::minimize(nlohmann::json &output_json)
 
     setup_initial_guess();
 
-    auto last_good_result = gsl_vector_alloc (N*2);
+    auto last_good_result = gsl_vector_alloc (N);
 
     T = gsl_multimin_fdfminimizer_vector_bfgs2;
     //T = gsl_multimin_fdfminimizer_conjugate_pr;
 
-    s = gsl_multimin_fdfminimizer_alloc (T, n);
+    s = gsl_multimin_fdfminimizer_alloc (T, N);
 
-    gsl_multimin_fdfminimizer_set (s, &my_func, k_and_C, step_size, tolerance);
+    gsl_multimin_fdfminimizer_set (s, &my_func, ks, step_size, tolerance);
 
 
     this->estimate_error = 1e10;
     do
     {
+        update_C(s->x);
         iter++;
         gsl_vector_memcpy(last_good_result, s->x);
 
@@ -305,6 +302,84 @@ void Guess_Estimator::minimize(nlohmann::json &output_json)
     convert_k_to_beta(s->x, beta_and_C);
     output_results(output_json, beta_and_C, beta_and_C);
     gsl_vector_free(last_good_result);
+
+}
+
+
+void Guess_Estimator::update_C(const gsl_vector *ks)
+{
+    convert_k_to_beta(ks, beta_and_C);
+
+    auto just_betas = gsl_vector_subvector(beta_and_C,0,N);
+    printf ("betas = \n");
+    gsl_vector_fprintf (stdout, &just_betas.vector, "%g");
+
+
+    gsl_matrix *Ski = gsl_matrix_alloc(N, N);
+    //  gsl_matrix *Ski_orig = gsl_matrix_alloc(N, N);
+
+    gsl_vector *S0i = gsl_vector_alloc(N);
+    gsl_vector *C = gsl_vector_alloc (N);
+
+    gsl_permutation * p = gsl_permutation_alloc (N);
+
+    for ( auto k = 0U ; k < N ; ++k ) {
+        for ( auto i = 0U ; i < N ; ++i ) {
+            real_t beta_k = gsl_vector_get(beta_and_C, k);
+            real_t beta_i = gsl_vector_get(beta_and_C, i);
+            auto term = 1.0/sqrtq(beta_i+beta_k);
+            gsl_matrix_set(Ski,k,i,term);
+            //     gsl_matrix_set(Ski_orig,k,i,term);
+
+        }
+    }
+
+
+    printf("A = \n");
+    for (size_t i = 0; i < Ski->size1; i++) {
+        for (size_t j = 0; j < Ski->size2; j++) {
+            printf( "%g ", gsl_matrix_get(Ski, i, j));
+        }
+
+        printf("\n");
+    }
+
+
+    for ( auto i = 0U ; i < N ; ++i ) {
+        real_t beta_i = gsl_vector_get(beta_and_C, i);
+        real_t sqrt_beta_i = sqrtq(beta_i) ;
+        auto erf = errfunc(sqrt_beta_i) ;
+        auto term = (1/ sqrt_beta_i)*expq(1.0/4.0*beta_i)* erf;
+        gsl_vector_set(S0i, i, term);
+    }
+
+    printf ("b = \n");
+    gsl_vector_fprintf (stdout, S0i, "%g");
+
+    int decomp_sign = 0;
+    int status = gsl_linalg_LU_decomp (Ski, p, &decomp_sign);
+    if ( status != GSL_SUCCESS ) {
+        throw std::runtime_error("LU Decomposition failed");
+    }
+
+    status = gsl_linalg_LU_solve (Ski, p, S0i, C);
+    if ( status != GSL_SUCCESS ) {
+        throw std::runtime_error("LU matrix solver failed");
+    }
+
+    printf ("New C = \n");
+    gsl_vector_fprintf (stdout, C, "%g");
+    for ( auto i = 0U ; i < N ; ++i ) {
+        gsl_vector_set(beta_and_C,i+N, gsl_vector_get(C,i) );
+    }
+
+    //gsl_vector *y = gsl_vector_alloc (N);
+    // gsl_blas_dgemv(CblasNoTrans, 1, Ski_orig , C, 1, y);
+    gsl_permutation_free (p);
+    gsl_matrix_free(Ski);
+    gsl_vector_free(S0i);
+    gsl_vector_free(C);
+    // gsl_vector_free(y);
 
 }
 
