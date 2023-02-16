@@ -51,6 +51,8 @@ double Guess_Estimator::average_error(const gsl_vector *v)
         }
     }
 
+    printf("close to 1?: %f\n", double(sqrtq(pi)*sum1));
+
     double sum = 0.5 + half_sqrt_pi*sum1 - sqrt_pi*sum2;
 
     //logger()->trace("f called with N={}, sum is {}",v->size/2,sum);

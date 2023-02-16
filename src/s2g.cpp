@@ -42,7 +42,7 @@ static nlohmann::json parse_args(int argc, const char **argv)
         input_set["initial_C"] = initial_C;
         input_set["initial_beta"] = initial_beta;
         input_set["beta_factor"] = beta_factor;
-
+        input_set["three_d"] = three_d;
         if ( not max_guesses and ( number_of_terms > 1 and vm.count("guess") < 1 ) ) {
             logger()->critical("FATAL: You must specify a guess file when number_of_terms > 1");
             exit(1);

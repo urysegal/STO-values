@@ -26,6 +26,7 @@ public:
     auto get_initial_beta() const { return  initial_beta; }
     auto get_initial_C() const { return  initial_C; }
     auto get_beta_factor() const { return beta_factor; }
+    bool is_three_d() const { return three_d;}
 
 private:
     unsigned int number_of_terms = 128;
@@ -35,6 +36,7 @@ private:
     double initial_beta = 0.1;
     double initial_C = 1;
     double beta_factor = 1.1;
+    bool three_d = true;
 };
 
 struct result_term {
@@ -71,14 +73,30 @@ protected:
 
     static real_t errfunc(real_t sqrt_beta);
 
-    double diff_by_Ci(const gsl_vector *v, size_t i);
-    double diff_by_bi(const gsl_vector *v, size_t i);
+    virtual double diff_by_Ci(const gsl_vector *v, size_t i);
+    virtual double diff_by_bi(const gsl_vector *v, size_t i);
 
     virtual double GET_C(const gsl_vector *v, unsigned int i) const { return gsl_vector_get(v, (N + i)); }
     virtual double GET_beta(const gsl_vector *v, unsigned int i) const { return gsl_vector_get(v, (i)); }
 
     virtual void setup_initial_guess();
     void output_results(nlohmann::json &output_json, const gsl_vector *C_vector, const gsl_vector *beta_vector);
+
+};
+
+class Three_D_Estimator : public Guess_Estimator {
+public:
+    Three_D_Estimator(const Arguments &_args) : Guess_Estimator(_args) {}
+
+    virtual ~Three_D_Estimator();
+
+
+    virtual double average_error (const gsl_vector *v) override;
+
+protected:
+    double diff_by_Ci(const gsl_vector *v, size_t i) override;
+    double diff_by_bi(const gsl_vector *v, size_t i) override;
+
 
 };
 
