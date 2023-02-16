@@ -31,7 +31,7 @@ include_directories(${stovalues_SOURCE_DIR} ${stovalues_SOURCE_DIR}/include)
 find_package(spdlog REQUIRED)
 find_package(nlohmann_json REQUIRED)
 
-add_executable(s2g src/s2g.cpp src/environ.cpp src/logger.cpp src/parameters.cpp src/estimator.cpp src/incremental.cpp)
+add_executable(s2g src/s2g.cpp src/environ.cpp src/logger.cpp src/parameters.cpp src/estimator.cpp src/incremental.cpp src/three_d_estimator.cpp)
 add_dependencies(s2g nlohmann_json)
 target_link_libraries(s2g PUBLIC spdlog::spdlog)
 target_link_libraries (s2g PUBLIC Eigen3::Eigen)
