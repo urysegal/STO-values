@@ -334,7 +334,26 @@ double Three_D_Estimator::diff_by_Ci(const gsl_vector *v, size_t i)
 
 double Three_D_Estimator::diff_by_bi(const gsl_vector *v, size_t i)
 {
+    auto Ci = GET_C(v, i);
+    auto beta_i = GET_beta(v, i);
+    auto Bi = get_Bi(v, i);
 
+    real_t sum = 0;
+    for ( auto j = 0U ; j < N ; ++j )
+    {
+        real_t beta_j = GET_beta(v, j);
+        real_t Cj = GET_C(v, j);
+        sum +=  Ci*Cj/sqrtq(powq(beta_i+beta_j,5));
+    }
+
+    real_t frac = 12.0*beta_i*beta_i + 12*beta_i + 1;
+    frac /= 16.0*beta_i*beta_i*(2.0*beta_i + 1);
+
+    real_t deriv_term = sqrt_pi * frac * Bi ;
+    deriv_term -= (2.0*beta_i + 1) / (8.0*powq(beta_i, 4)) ;
+    deriv_term *= Ci;
+
+    return -3*quarter_sqrt_pi*sum - Ci/powq(beta_i, 3) + deriv_term;
 }
 
 
