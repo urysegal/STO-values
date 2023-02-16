@@ -70,6 +70,8 @@ protected:
     double tolerance = 1e-2;
     double stop_gradient = 1e-12;
     nlohmann::json output_set;
+    real_t C_adjuster = 1;
+
 
     static real_t errfunc(real_t sqrt_beta);
 
@@ -97,7 +99,6 @@ protected:
     double diff_by_Ci(const gsl_vector *v, size_t i) override;
     double diff_by_bi(const gsl_vector *v, size_t i) override;
     real_t get_Bi(const gsl_vector *v, int i) const;
-
 
 };
 

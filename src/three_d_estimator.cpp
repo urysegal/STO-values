@@ -57,7 +57,8 @@ double Three_D_Estimator::average_error (const gsl_vector *v)
         }
 
     }
-    //printf("%f\n",double(double_sum*pi/4));
+    this->C_adjuster = 1.0/(sqrtq((double_sum*sqrt_pi)));
+    //printf("Adjuster: %10.15f, N=%10.15f\n", double(C_adjuster), double(double_sum*sqrt_pi));
 
     return 1.0/4.0 + quarter_sqrt_pi*double_sum + square_sum - quarter_sqrt_pi*B_sum;
 
