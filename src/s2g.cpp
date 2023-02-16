@@ -20,6 +20,7 @@ static nlohmann::json parse_args(int argc, const char **argv)
     nlohmann::json input_set;
     unsigned int number_of_terms, max_iterations, max_guesses;
     double beta_factor, initial_C, initial_beta;
+    bool three_d=true;
     string guess_file="-";
 
     po::options_description desc("s2g parameters:");
@@ -30,7 +31,8 @@ static nlohmann::json parse_args(int argc, const char **argv)
             ("guess,g", po::value<string>(&guess_file), "If number_of_terms > 1, Initial Guess file from a previous run with N=N-1")
             ("beta_factor,f", po::value<double>(&beta_factor)->default_value(1.1), "beta growth factor")
             ("initial_C,C", po::value<double>(&initial_C)->default_value(1), "initial C")
-            ("initial_beta,b", po::value<double>(&initial_beta)->default_value(0.1), "initial beta");
+            ("three_d,d", po::value<bool>(&three_d)->default_value(true), "Use 3D integrals")
+        ("initial_beta,b", po::value<double>(&initial_beta)->default_value(0.1), "initial beta");
 
     try {
         po::variables_map vm;
@@ -114,12 +116,20 @@ estimate(nlohmann::json &input_set, nlohmann::json &output_set)
         double best_so_far = 1e20;
         nlohmann::json best_json;
         for (unsigned int i = 0U; i < args.get_max_guesses(); ++i) {
-            Guess_Estimator estimator(args);
-            estimator.minimize(output_set);
 
-            if (estimator.get_estimate_error() < best_so_far) {
-                best_so_far = estimator.get_estimate_error();
-                best_json = estimator.get_output_set();
+            std::unique_ptr<Guess_Estimator> estimator;
+
+            if ( args.is_three_d() ) {
+                estimator = make_unique<Three_D_Estimator> (args);
+            } else {
+                estimator = make_unique<Guess_Estimator> (args);
+            }
+
+            estimator->minimize(output_set);
+
+            if (estimator->get_estimate_error() < best_so_far) {
+                best_so_far = estimator->get_estimate_error();
+                best_json = estimator->get_output_set();
                 cout << "Best :" << best_json << endl;
                 output_set["best"]   = best_json;
             }

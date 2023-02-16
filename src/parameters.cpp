@@ -18,6 +18,7 @@ Arguments::Arguments(const nlohmann::json &j)
         this->beta_factor = j["beta_factor"];
         this->initial_C = j["initial_C"];
         this->initial_beta = j["initial_beta"];
+        this->three_d = j["three_d"];
     } catch (json::parse_error& ex) {
         std::cerr << "parse error : " << ex.what() << std::endl;
     }

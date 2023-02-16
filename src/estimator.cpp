@@ -276,6 +276,68 @@ void Guess_Estimator::minimize(nlohmann::json &output_json)
 
 }
 
+
+Three_D_Estimator::~Three_D_Estimator()
+{
+
+}
+
+real_t
+Three_D_Estimator::get_Bi(const gsl_vector *v, int i) const
+{
+    real_t beta_i = GET_beta(v, i);
+
+    real_t term = ( (2*beta_i) +1 ) / sqrtq(powq(beta_i, 5)) ;
+    term *= expq(1.0/(4.0*beta_i));
+    real_t err= errfunc(sqrtq(beta_i));
+    return term*err;
+}
+
+
+double Three_D_Estimator::average_error (const gsl_vector *v)
+{
+    real_t double_sum=0, square_sum=0, B_sum = 0;
+
+    for ( auto i=0U ; i< N ; ++i ) {
+
+        auto Ci = GET_C(v, i);
+        auto beta_i = GET_beta(v, i);
+        auto Bi = get_Bi(v, i);
+
+        B_sum += Ci*Bi;
+        square_sum += Ci / (2.0*beta_i*beta_i);
+
+        for ( auto j = 0U ; j < N ; ++j ) {
+            auto Cj = GET_C(v, j);
+            auto beta_j = GET_beta(v, j);
+            double_sum += Ci*Cj/(sqrtq(powq(beta_i+beta_j,3)));
+        }
+
+    }
+
+    return 1.0/4.0 + quarter_sqrt_pi*double_sum + square_sum + quarter_sqrt_pi*B_sum;
+}
+
+double Three_D_Estimator::diff_by_Ci(const gsl_vector *v, size_t i)
+{
+    real_t beta_i = GET_beta(v, i);
+    auto Bi= get_Bi(v, i);
+    real_t sum = 0;
+    for ( auto j = 0U ; j < N ; ++j )
+    {
+        real_t beta_j = GET_beta(v, j);
+        sum += GET_C(v, j) / ( sqrtq(powq(beta_i+beta_j,3)));
+    }
+    return half_sqrt_pi * sum + (1.0/(2*beta_i*beta_i)) - quarter_sqrt_pi*Bi;
+}
+
+
+double Three_D_Estimator::diff_by_bi(const gsl_vector *v, size_t i)
+{
+
+}
+
+
 } // namespace
 
 

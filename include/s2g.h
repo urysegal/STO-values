@@ -96,6 +96,7 @@ public:
 protected:
     double diff_by_Ci(const gsl_vector *v, size_t i) override;
     double diff_by_bi(const gsl_vector *v, size_t i) override;
+    real_t get_Bi(const gsl_vector *v, int i) const;
 
 
 };
