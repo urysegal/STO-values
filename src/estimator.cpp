@@ -252,6 +252,8 @@ void Guess_Estimator::minimize(nlohmann::json &output_json)
 
         status = gsl_multimin_fdfminimizer_iterate (s);
 
+
+        auto C_adjuster = this->calculate_adjuster(s->x);
         for ( auto j= 0U ; j < N ; j++ ) {
             gsl_vector_set(s->x, N+j, GET_C(s->x, j) * C_adjuster);
         }
@@ -259,6 +261,8 @@ void Guess_Estimator::minimize(nlohmann::json &output_json)
 
         if (status)
             break;
+
+        average_error_df (s->x, s->gradient);
 
         status = gsl_multimin_test_gradient (s->gradient, stop_gradient);
 

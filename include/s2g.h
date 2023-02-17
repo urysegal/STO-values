@@ -70,7 +70,6 @@ protected:
     double tolerance = 1e-2;
     double stop_gradient = 1e-12;
     nlohmann::json output_set;
-    real_t C_adjuster = 1;
 
 
     static real_t errfunc(real_t sqrt_beta);
@@ -83,6 +82,9 @@ protected:
 
     virtual void setup_initial_guess();
     void output_results(nlohmann::json &output_json, const gsl_vector *C_vector, const gsl_vector *beta_vector);
+
+    virtual real_t calculate_adjuster (const gsl_vector *v) {return 1;}
+
 
 };
 
@@ -99,6 +101,10 @@ protected:
     double diff_by_Ci(const gsl_vector *v, size_t i) override;
     double diff_by_bi(const gsl_vector *v, size_t i) override;
     real_t get_Bi(const gsl_vector *v, int i) const;
+    real_t calculate_adjuster (const gsl_vector *v) override;
+
+    void adjust_C(gsl_vector *v);
+
 
 };
 
